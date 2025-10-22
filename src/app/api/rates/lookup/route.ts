@@ -17,15 +17,12 @@ function inferZone(order: {
   if (/\b(ontario|toronto|gta|guelph|london|windsor|on)\b/.test(text)) {
     return "Ontario";
   }
-
   if (/\b(chicago|detroit|wi|wisconsin|il|illinois|mi|michigan|oh|ohio|midwest)\b/.test(text)) {
     return "Midwest";
   }
-
   if (/\b(new york|ny|nj|new jersey|pa|pennsylvania|ma|massachusetts|east)\b/.test(text)) {
     return "US-East";
   }
-
   return undefined;
 }
 
@@ -35,9 +32,7 @@ async function resolveDriverType(driver?: string | null, unitCode?: string | nul
     const driverRecord = await prisma.driver.findUnique({ where: { name } }).catch(() => null);
     if (driverRecord) return driverRecord.active === false ? undefined : "Company";
     const lower = name.toLowerCase();
-    if (lower.includes("owner") || lower.includes("oo")) {
-      return "OwnerOp";
-    }
+    if (lower.includes("owner") || lower.includes("oo")) return "OwnerOp";
   }
 
   const code = unitCode?.trim();
@@ -57,25 +52,17 @@ async function resolveDriverType(driver?: string | null, unitCode?: string | nul
 }
 
 async function findMatchingRate(type?: string, zone?: string) {
-  const attempts = [
-    { type, zone },
-    { type },
-    { zone },
-    {},
-  ];
+  const attempts = [{ type, zone }, { type }, { zone }, {}];
 
   for (const where of attempts) {
     const filters = Object.fromEntries(
       Object.entries(where).filter(([, value]) => typeof value === "string" && value.trim().length > 0)
     );
-    if (Object.keys(filters).length === 0 && where !== attempts[attempts.length - 1]) {
-      continue;
-    }
+    if (Object.keys(filters).length === 0 && where !== attempts[attempts.length - 1]) continue;
 
     const rate = await prisma.rate.findFirst({ where: filters }).catch(() => null);
     if (rate) return rate;
   }
-
   return null;
 }
 
@@ -124,14 +111,20 @@ export async function POST(req: Request) {
     });
   }
 
+  const fixed = Number(rate.fixedCPM);
+  const wage = Number(rate.wageCPM);
+  const addOns = Number(rate.addOnsCPM);
+  const rolling = Number(rate.rollingCPM);
+
   return NextResponse.json({
     found: true,
     rateId: rate.id,
     type: rate.type ?? inferredType ?? null,
     zone: rate.zone ?? inferredZone ?? null,
-    fixedCPM: Number(rate.fixedCPM),
-    wageCPM: Number(rate.wageCPM),
-    addOnsCPM: Number(rate.addOnsCPM),
-    rollingCPM: Number(rate.rollingCPM),
+    fixedCPM: fixed,
+    wageCPM: wage,
+    addOnsCPM: addOns,
+    rollingCPM: rolling,
+    totalCPM: fixed + wage + addOns + rolling,
   });
 }
