@@ -21,6 +21,11 @@ const links = [
     title: "Units",
     description: "Maintain tractors, trailers, and equipment.",
   },
+  {
+    href: "/rates",
+    title: "Rates",
+    description: "Define CPM components; match by type/zone.",
+  },
 ];
 
 export default function HomePage() {
