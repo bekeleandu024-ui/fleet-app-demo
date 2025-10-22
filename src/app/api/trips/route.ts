@@ -26,13 +26,51 @@ export async function POST(req: Request) {
   weekStart.setHours(0, 0, 0, 0);
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
 
+  const parseNumber = (value: unknown) => {
+    if (value === undefined || value === null || value === "") return undefined;
+    const num = Number(value);
+    return Number.isFinite(num) ? num : undefined;
+  };
+
+  const requestedType =
+    typeof body.type === "string" && body.type.trim().length > 0
+      ? body.type.trim()
+      : undefined;
+  const requestedZone =
+    typeof body.zone === "string" && body.zone.trim().length > 0
+      ? body.zone.trim()
+      : undefined;
+
+  let fixedCPM = parseNumber(body.fixedCPM);
+  let wageCPM = parseNumber(body.wageCPM);
+  let addOnsCPM = parseNumber(body.addOnsCPM);
+  let rollingCPM = parseNumber(body.rollingCPM);
+  let rateId: string | null = null;
+
+  if (requestedType || requestedZone) {
+    const rate = await prisma.rate.findFirst({
+      where: {
+        ...(requestedType ? { type: requestedType } : {}),
+        ...(requestedZone ? { zone: requestedZone } : {}),
+      },
+    });
+
+    if (rate) {
+      rateId = rate.id;
+      if (fixedCPM == null) fixedCPM = Number(rate.fixedCPM);
+      if (wageCPM == null) wageCPM = Number(rate.wageCPM);
+      if (addOnsCPM == null) addOnsCPM = Number(rate.addOnsCPM);
+      if (rollingCPM == null) rollingCPM = Number(rate.rollingCPM);
+    }
+  }
+
   // compute costs
   const { totalCPM, totalCost, profit, marginPct } = calcCost({
     miles: Number(body.miles),
-    fixedCPM: Number(body.fixedCPM ?? 0),
-    wageCPM: Number(body.wageCPM ?? 0),
-    addOnsCPM: Number(body.addOnsCPM ?? 0),
-    rollingCPM: Number(body.rollingCPM ?? 0),
+    fixedCPM,
+    wageCPM,
+    addOnsCPM,
+    rollingCPM,
     revenue: Number(body.revenue ?? 0),
   });
 
@@ -46,15 +84,16 @@ export async function POST(req: Request) {
       weekStart,
       miles: Number(body.miles),
       revenue: body.revenue != null ? Number(body.revenue) : null,
-      fixedCPM: body.fixedCPM != null ? Number(body.fixedCPM) : null,
-      wageCPM: body.wageCPM != null ? Number(body.wageCPM) : null,
-      addOnsCPM: body.addOnsCPM != null ? Number(body.addOnsCPM) : null,
-      rollingCPM: body.rollingCPM != null ? Number(body.rollingCPM) : null,
+      fixedCPM: fixedCPM != null ? Number(fixedCPM) : null,
+      wageCPM: wageCPM != null ? Number(wageCPM) : null,
+      addOnsCPM: addOnsCPM != null ? Number(addOnsCPM) : null,
+      rollingCPM: rollingCPM != null ? Number(rollingCPM) : null,
       totalCPM,
       totalCost,
       profit,
       marginPct,
       status: "Dispatched",
+      rateId,
     },
     select: { id: true },
   });
