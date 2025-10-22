@@ -1,56 +1,60 @@
-// src/app/api/trips/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/server/prisma";
 import { calcCost } from "@/lib/costing";
+import { TripCreate } from "@/lib/schemas";
 
 export async function GET() {
-  const trips = await prisma.trip.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  const trips = await prisma.trip.findMany({ orderBy: { createdAt: "desc" } });
   return NextResponse.json(trips);
 }
 
 export async function POST(req: Request) {
   const body = await req.json();
-
-  // basic validation
-  if (!body.driver || !body.unit || body.miles == null) {
+  const parsed = TripCreate.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "driver, unit, miles are required" },
+      { error: "Validation failed", issues: parsed.error.flatten() },
       { status: 400 }
     );
   }
+  const b = parsed.data;
 
-  // compute weekStart (Sunday)
-  const weekStart = body.tripStart ? new Date(body.tripStart) : new Date();
+  // beginning of week for tripStart or now
+  const weekStart = b.tripStart ? new Date(b.tripStart) : new Date();
   weekStart.setHours(0, 0, 0, 0);
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
 
-  // compute costs
   const { totalCPM, totalCost, profit, marginPct } = calcCost({
-    miles: Number(body.miles),
-    fixedCPM: Number(body.fixedCPM ?? 0),
-    wageCPM: Number(body.wageCPM ?? 0),
-    addOnsCPM: Number(body.addOnsCPM ?? 0),
-    rollingCPM: Number(body.rollingCPM ?? 0),
-    revenue: Number(body.revenue ?? 0),
+    miles: Number(b.miles),
+    fixedCPM: b.fixedCPM,
+    wageCPM: b.wageCPM,
+    addOnsCPM: b.addOnsCPM,
+    rollingCPM: b.rollingCPM,
+    revenue: b.revenue,
   });
 
   const trip = await prisma.trip.create({
     data: {
-      orderId: body.orderId ?? null,
-      driver: body.driver,
-      driverId: body.driverId ?? null,
-      unit: body.unit,
-      tripStart: body.tripStart ? new Date(body.tripStart) : null,
-      tripEnd: body.tripEnd ? new Date(body.tripEnd) : null,
+      orderId: b.orderId ?? null,
+      // store both IDs and display strings
+      driverId: b.driverId ?? null,
+      unitId: b.unitId ?? null,
+      driver: b.driver,
+      unit: b.unit,
+      type: b.type ?? null,
+      zone: b.zone ?? null,
+
+      miles: b.miles,
+      revenue: b.revenue ?? null,
+      fixedCPM: b.fixedCPM ?? null,
+      wageCPM: b.wageCPM ?? null,
+      addOnsCPM: b.addOnsCPM ?? null,
+      rollingCPM: b.rollingCPM ?? null,
+
+      tripStart: b.tripStart ? new Date(b.tripStart) : null,
+      tripEnd: b.tripEnd ? new Date(b.tripEnd) : null,
       weekStart,
-      miles: Number(body.miles),
-      revenue: body.revenue != null ? Number(body.revenue) : null,
-      fixedCPM: body.fixedCPM != null ? Number(body.fixedCPM) : null,
-      wageCPM: body.wageCPM != null ? Number(body.wageCPM) : null,
-      addOnsCPM: body.addOnsCPM != null ? Number(body.addOnsCPM) : null,
-      rollingCPM: body.rollingCPM != null ? Number(body.rollingCPM) : null,
+
       totalCPM,
       totalCost,
       profit,

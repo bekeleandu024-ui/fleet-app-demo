@@ -1,87 +1,46 @@
 "use client";
-
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-export default function NewDriverPage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    homeBase: "",
-    active: true,
-  });
-
-  function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
+export default function NewDriver() {
+  const r = useRouter();
+  const [f, setF] = useState({ name: "", homeBase: "", active: true });
+  const [err, setErr] = useState<string | null>(null);
+  const input = "w-full border rounded p-2";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) {
-      alert("Name is required.");
-      return;
-    }
-
-    setLoading(true);
+    setErr(null);
     const res = await fetch("/api/drivers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.name.trim(),
-        homeBase: form.homeBase.trim() ? form.homeBase.trim() : undefined,
-        active: form.active,
-      }),
+      body: JSON.stringify(f),
     });
-    setLoading(false);
-
-    if (res.ok) {
-      router.push("/drivers");
-    } else {
-      const json = await res.json().catch(() => ({}));
-      alert(json.error ?? "Failed to create driver.");
+    if (res.ok) r.push("/drivers");
+    else {
+      const j = await res.json().catch(() => ({}));
+      setErr(j?.issues?.fieldErrors?.name?.[0] ?? j?.error ?? "Failed");
     }
   }
 
   return (
     <main className="max-w-xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">New Driver</h1>
+      <h1 className="text-2xl font-bold mb-3">New Driver</h1>
       <form onSubmit={onSubmit} className="space-y-4">
+        {err && <div className="p-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded">{err}</div>}
         <div>
           <label className="block text-sm">Name *</label>
-          <input
-            className="w-full border rounded p-2"
-            value={form.name}
-            onChange={(e) => set("name", e.target.value)}
-            required
-          />
+          <input className={input} value={f.name} onChange={e=>setF(p=>({...p, name: e.target.value}))} />
         </div>
-
         <div>
           <label className="block text-sm">Home Base</label>
-          <input
-            className="w-full border rounded p-2"
-            value={form.homeBase}
-            onChange={(e) => set("homeBase", e.target.value)}
-            placeholder="e.g. Toronto"
-          />
+          <input className={input} value={f.homeBase} onChange={e=>setF(p=>({...p, homeBase: e.target.value}))} />
         </div>
-
         <label className="inline-flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={form.active}
-            onChange={(e) => set("active", e.target.checked)}
-          />
+          <input type="checkbox" checked={f.active} onChange={e=>setF(p=>({...p, active: e.target.checked}))} />
           Active
         </label>
-
-        <button
-          disabled={loading}
-          className="px-4 py-2 rounded bg-black text-white disabled:opacity-60"
-        >
-          {loading ? "Saving..." : "Create Driver"}
-        </button>
+        <button className="px-4 py-2 rounded bg-black text-white">Create</button>
       </form>
     </main>
   );
