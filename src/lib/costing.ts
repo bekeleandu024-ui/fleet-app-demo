@@ -1,10 +1,10 @@
 type CostInput = {
   miles: number;
-  fixedCPM?: number;
-  wageCPM?: number;
-  addOnsCPM?: number;
-  rollingCPM?: number;
-  revenue?: number;
+  fixedCPM?: number | null;
+  wageCPM?: number | null;
+  addOnsCPM?: number | null;
+  rollingCPM?: number | null;
+  revenue?: number | null;
 };
 
 export function calcCost({
