@@ -40,6 +40,10 @@ model Trip {
   tripEnd   DateTime?
   weekStart DateTime?
 
+  // classification
+  type String?
+  zone String?
+
   // numbers (SQLite: keep plain Decimal, no @db.Decimal)
   miles      Decimal
   revenue    Decimal?
@@ -114,4 +118,7 @@ model Rate {
   rollingCPM Decimal
   // back-ref (optional to use later)
   trips      Trip[]  @relation("TripRate")
+
+  @@index([type])
+  @@index([zone])
 }
