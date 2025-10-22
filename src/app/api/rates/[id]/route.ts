@@ -1,63 +1,22 @@
+// src/app/api/rates/[id]/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/server/prisma";
+import prisma from "@/server/prisma";
+import { RateCreate } from "@/lib/schemas";
 
-type RouteContext = { params: { id: string } };
-
-function normalizeOptionalString(value: unknown) {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed === "" ? null : trimmed;
-}
-
-function parseNumber(value: unknown) {
-  const numberValue = Number(value);
-  return Number.isFinite(numberValue) ? numberValue : null;
-}
-
-export async function PATCH(req: Request, { params }: RouteContext) {
-  const existing = await prisma.rate.findUnique({ where: { id: params.id } });
-
-  if (!existing) {
-    return NextResponse.json({ error: "Rate not found" }, { status: 404 });
-  }
-
+export async function PATCH(req: Request, { params }: { params: { id: string }}) {
   const body = await req.json();
-
-  const fixedCPM = parseNumber(body.fixedCPM);
-  const wageCPM = parseNumber(body.wageCPM);
-  const addOnsCPM = parseNumber(body.addOnsCPM);
-  const rollingCPM = parseNumber(body.rollingCPM);
-
-  if ([fixedCPM, wageCPM, addOnsCPM, rollingCPM].some((value) => value == null)) {
+  const parsed = RateCreate.partial().safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "All CPM fields are required and must be numbers" },
+      { error: "Validation failed", issues: parsed.error.flatten() },
       { status: 400 }
     );
   }
-
-  await prisma.rate.update({
-    where: { id: params.id },
-    data: {
-      type: normalizeOptionalString(body.type),
-      zone: normalizeOptionalString(body.zone),
-      fixedCPM,
-      wageCPM,
-      addOnsCPM,
-      rollingCPM,
-    },
-  });
-
-  return NextResponse.json({ ok: true });
+  const r = await prisma.rate.update({ where: { id: params.id }, data: parsed.data });
+  return NextResponse.json(r);
 }
 
-export async function DELETE(req: Request, { params }: RouteContext) {
-  const existing = await prisma.rate.findUnique({ where: { id: params.id } });
-
-  if (!existing) {
-    return NextResponse.json({ error: "Rate not found" }, { status: 404 });
-  }
-
+export async function DELETE(_: Request, { params }: { params: { id: string }}) {
   await prisma.rate.delete({ where: { id: params.id } });
-
   return NextResponse.json({ ok: true });
 }
