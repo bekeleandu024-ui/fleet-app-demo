@@ -1,27 +1,25 @@
-// src/lib/costing.ts
-export function calcCost(params: {
+type CostInput = {
   miles: number;
   fixedCPM?: number;
   wageCPM?: number;
   addOnsCPM?: number;
   rollingCPM?: number;
   revenue?: number;
-}) {
-  const miles = Number(params.miles) || 0;
-  const fixedCPM = Number(params.fixedCPM ?? 0);
-  const wageCPM = Number(params.wageCPM ?? 0);
-  const addOnsCPM = Number(params.addOnsCPM ?? 0);
-  const rollingCPM = Number(params.rollingCPM ?? 0);
-  const revenue = Number(params.revenue ?? 0);
+};
 
-  const totalCPM = fixedCPM + wageCPM + addOnsCPM + rollingCPM;
-  const totalCost = miles * totalCPM;
-  const profit = revenue - totalCost;
-  const marginPct = revenue > 0 ? profit / revenue : 0;
+export function calcCost({
+  miles,
+  fixedCPM = 0,
+  wageCPM = 0,
+  addOnsCPM = 0,
+  rollingCPM = 0,
+  revenue,
+}: CostInput) {
+  const totalCPM = (fixedCPM ?? 0) + (wageCPM ?? 0) + (addOnsCPM ?? 0) + (rollingCPM ?? 0);
+  const totalCost = Number((miles * totalCPM).toFixed(2));
+  const rev = revenue ?? 0;
+  const profit = Number((rev - totalCost).toFixed(2));
+  const marginPct = rev ? profit / rev : null;
 
-  const rpm = miles > 0 ? revenue / miles : 0;
-  const cpm = miles > 0 ? totalCost / miles : 0;
-  const ppm = miles > 0 ? profit / miles : 0;
-
-  return { totalCPM, totalCost, profit, marginPct, rpm, cpm, ppm };
+  return { totalCPM, totalCost, profit, marginPct };
 }

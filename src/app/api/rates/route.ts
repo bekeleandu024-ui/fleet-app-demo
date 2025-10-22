@@ -1,9 +1,6 @@
-// src/app/api/rates/route.ts
 import { NextResponse } from "next/server";
-// Match your current style (you used @/src/server/prisma in the lookup file):
-import { prisma } from "@/src/server/prisma";
-// If your schemas import without /src, change the next line to "@/lib/schemas"
-import { RateCreate } from "@/src/lib/schemas";
+import prisma from "@/server/prisma";          // or: import { prisma } from "@/server/prisma";
+import { RateCreate } from "@/lib/schemas";
 
 export async function GET() {
   const items = await prisma.rate.findMany({
