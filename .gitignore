@@ -42,12 +42,9 @@ next-env.d.ts
 
 /src/generated/prisma
 
-# Fleet instructions
+# local sqlite databases
+prisma/dev.db
+prisma/*.sqlite
 prisma/*.db*
-*.db
 *.db-journal
-.env
-.env.*
-.next/
-node_modules/
-.turbo/
+
