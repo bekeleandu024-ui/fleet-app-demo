@@ -16,7 +16,8 @@
 
     "baseUrl": ".",                      // <-- add this
     "paths": {
-      "@/*": ["./src/*"]                // <-- your alias (good)
+      "@/*": ["./src/*"],                // <-- your alias (good)
+      "@/src/*": ["./src/*"]
     },
 
     "plugins": [{ "name": "next" }]
