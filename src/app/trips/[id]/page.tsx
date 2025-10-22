@@ -1,6 +1,7 @@
 // src/app/trips/[id]/page.tsx
 import prisma from "@/server/prisma";
 import AddEvent from "./ui-add-event";
+import TripStatusButtons from "./ui-status";
 
 type PageProps = { params: { id: string } };
 
@@ -30,6 +31,11 @@ export default async function Page({ params }: PageProps) {
           </div>
           <div><b>Status:</b> {trip.status}</div>
         </div>
+      </section>
+
+      <section className="p-4 border rounded-lg">
+        <h2 className="font-semibold mb-2">Status</h2>
+        <TripStatusButtons tripId={trip.id} status={trip.status} />
       </section>
 
       <section className="p-4 border rounded-lg">
