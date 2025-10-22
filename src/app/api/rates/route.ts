@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
-import prisma from "@/server/prisma";          // or: import { prisma } from "@/server/prisma";
+import prisma from "@/server/prisma";
 import { RateCreate } from "@/lib/schemas";
 
+// GET /api/rates  -> list rates with numeric CPMs + total
 export async function GET() {
   const items = await prisma.rate.findMany({
     orderBy: [{ type: "asc" }, { zone: "asc" }],
   });
+
   return NextResponse.json(
     items.map((r) => ({
       ...r,
@@ -22,6 +24,7 @@ export async function GET() {
   );
 }
 
+// POST /api/rates -> create a rate (validated)
 export async function POST(req: Request) {
   const body = await req.json();
   const parsed = RateCreate.safeParse(body);
