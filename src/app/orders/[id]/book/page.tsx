@@ -1,5 +1,5 @@
 import prisma from "@/server/prisma";
-import TripForm from "./TripForm";
+import TripForm from "./ui-trip-form";
 
 type Props = { params: { id: string } };
 

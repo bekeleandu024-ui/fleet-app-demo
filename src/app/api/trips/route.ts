@@ -40,6 +40,7 @@ export async function POST(req: Request) {
     data: {
       orderId: body.orderId ?? null,
       driver: body.driver,
+      driverId: body.driverId ?? null,
       unit: body.unit,
       tripStart: body.tripStart ? new Date(body.tripStart) : null,
       tripEnd: body.tripEnd ? new Date(body.tripEnd) : null,
