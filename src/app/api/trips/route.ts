@@ -25,8 +25,8 @@ export async function POST(req: Request) {
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
 
   // ---- Fill CPM defaults from matched Rate when type/zone provided ----
-  const requestedType = b.type?.trim() || undefined;
-  const requestedZone = b.zone?.trim() || undefined;
+  const requestedType = b.type ?? undefined;
+  const requestedZone = b.zone ?? undefined;
 
   let fixedCPM = b.fixedCPM ?? undefined;
   let wageCPM = b.wageCPM ?? undefined;

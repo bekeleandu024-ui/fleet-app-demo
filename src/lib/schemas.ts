@@ -92,6 +92,8 @@ export const TripCreate = z
     wageCPM: optionalNonNegative("wageCPM"),
     addOnsCPM: optionalNonNegative("addOnsCPM"),
     rollingCPM: optionalNonNegative("rollingCPM"),
+    type: optionalTrimmedString(),
+    zone: optionalTrimmedString(),
     tripStart: optionalDateTime("tripStart"),
     tripEnd: optionalDateTime("tripEnd"),
     rateId: optionalTrimmedString(),
