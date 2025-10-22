@@ -1,24 +1,56 @@
-// app/api/rates/route.ts
+// src/app/api/rates/route.ts
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { prisma } from "@/server/prisma";
+import prisma from "@/server/prisma";
 
-// GET /api/rates?type=Company&zone=Ontario
+import { RateCreate, serializeRate } from "./schema";
+
+function normalizeFilter(value: string | null) {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const type = url.searchParams.get("type") ?? undefined;
-  const zone = url.searchParams.get("zone") ?? undefined;
+  const type = normalizeFilter(url.searchParams.get("type"));
+  const zone = normalizeFilter(url.searchParams.get("zone"));
 
-  const rate = await prisma.rate.findFirst({
-    where: { ...(type ? { type } : {}), ...(zone ? { zone } : {}) }
+  const where: Prisma.RateWhereInput = {};
+  if (type) where.type = type;
+  if (zone) where.zone = zone;
+
+  const rates = await prisma.rate.findMany({
+    where,
+    orderBy: [{ type: "asc" }, { zone: "asc" }],
   });
 
-  if (!rate) return NextResponse.json({ found: false });
+  return NextResponse.json(rates.map(serializeRate));
+}
 
-  return NextResponse.json({
-    found: true,
-    fixedCPM: Number(rate.fixedCPM),
-    wageCPM: Number(rate.wageCPM),
-    addOnsCPM: Number(rate.addOnsCPM),
-    rollingCPM: Number(rate.rollingCPM)
+export async function POST(req: Request) {
+  const payload = await req.json();
+  const parsed = RateCreate.safeParse(payload);
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+
+  const data = parsed.data;
+
+  const rate = await prisma.rate.create({
+    data: {
+      type: data.type ?? null,
+      zone: data.zone ?? null,
+      fixedCPM: data.fixedCPM,
+      wageCPM: data.wageCPM,
+      addOnsCPM: data.addOnsCPM,
+      rollingCPM: data.rollingCPM,
+    },
   });
+
+  return NextResponse.json(serializeRate(rate), { status: 201 });
 }
