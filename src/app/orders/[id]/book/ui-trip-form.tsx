@@ -1,57 +1,31 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
-export type DriverOption = { id: string; name: string };
-export type UnitOption = { id: string; code: string };
+type Opt = { id: string; name?: string; code?: string };
 
-type TripFormProps = {
+type Props = {
   orderId: string;
-  drivers: DriverOption[];
-  units: UnitOption[];
-  rateTypes: string[];
-  rateZones: string[];
+  drivers: Opt[];
+  units: Opt[];
+  types: string[];
+  zones: string[];
 };
 
-type FormState = {
-  driverId: string;
-  unitId: string;
-  rateType: string;
-  rateZone: string;
-  miles: string;
-  revenue: string;
-  fixedCPM: string;
-  wageCPM: string;
-  addOnsCPM: string;
-  rollingCPM: string;
-  tripStart: string;
-  tripEnd: string;
-};
+export default function TripForm({ orderId, drivers, units, types, zones }: Props) {
+  const r = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [resolved, setResolved] = useState<{ type: string | null; zone: string | null } | null>(null);
 
-type RateFeedback = {
-  tone: "info" | "success" | "error";
-  message: string;
-};
-
-const inputClass = "w-full border rounded p-2";
-
-export default function UiTripForm({
-  orderId,
-  drivers,
-  units,
-  rateTypes,
-  rateZones,
-}: TripFormProps) {
-  const router = useRouter();
-  const [form, setForm] = useState<FormState>({
+  const [f, setF] = useState({
     driverId: "",
     unitId: "",
-    rateType: "",
-    rateZone: "",
     miles: "",
     revenue: "",
+    type: "",
+    zone: "",
     fixedCPM: "",
     wageCPM: "",
     addOnsCPM: "",
@@ -59,369 +33,204 @@ export default function UiTripForm({
     tripStart: "",
     tripEnd: "",
   });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [rateFeedback, setRateFeedback] = useState<RateFeedback | null>(null);
 
-  const updateForm = <K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    setError(null);
-  };
+  function set<K extends keyof typeof f>(k: K, v: string) {
+    setF(p => ({ ...p, [k]: v }));
+  }
 
+  // Auto-fill CPMs when type/zone changes
   useEffect(() => {
-    if (!form.rateType || !form.rateZone) {
-      setRateFeedback(null);
-      return;
-    }
-
-    const controller = new AbortController();
-    let cancelled = false;
-
-    async function lookupRate() {
-      try {
-        setRateFeedback({ tone: "info", message: "Looking up rate..." });
-        const params = new URLSearchParams({
-          type: form.rateType,
-          zone: form.rateZone,
-        });
-        const res = await fetch(`/api/rates?${params.toString()}`, {
-          signal: controller.signal,
-        });
-        if (!res.ok) {
-          throw new Error(`Request failed (${res.status})`);
-        }
-        const data = await res.json();
-        if (cancelled) return;
-
-        if (!data?.found) {
-          setRateFeedback({
-            tone: "error",
-            message: "No rate found for the selected type and zone. Enter CPM values manually.",
-          });
-          return;
-        }
-
-        setRateFeedback({ tone: "success", message: "Rate loaded from lookup." });
-        setForm((prev) => ({
-          ...prev,
-          fixedCPM:
-            data.fixedCPM != null ? data.fixedCPM.toString() : prev.fixedCPM,
-          wageCPM:
-            data.wageCPM != null ? data.wageCPM.toString() : prev.wageCPM,
-          addOnsCPM:
-            data.addOnsCPM != null ? data.addOnsCPM.toString() : prev.addOnsCPM,
-          rollingCPM:
-            data.rollingCPM != null ? data.rollingCPM.toString() : prev.rollingCPM,
-        }));
-      } catch (err) {
-        if (cancelled || controller.signal.aborted) {
-          return;
-        }
-        setRateFeedback({
-          tone: "error",
-          message:
-            err instanceof Error
-              ? `Unable to load rate. Enter CPM values manually (${err.message}).`
-              : "Unable to load rate. Enter CPM values manually.",
-        });
-      }
-    }
-
-    lookupRate();
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [form.rateType, form.rateZone]);
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-
-    const driver = drivers.find((d) => d.id === form.driverId);
-    if (!driver) {
-      setError("Please select a driver.");
-      return;
-    }
-
-    const unit = units.find((u) => u.id === form.unitId);
-    if (!unit) {
-      setError("Please select a unit.");
-      return;
-    }
-
-    const miles = Number(form.miles);
-    if (!Number.isFinite(miles) || miles <= 0) {
-      setError("Miles must be a positive number.");
-      return;
-    }
-
-    const revenue = form.revenue ? Number(form.revenue) : undefined;
-    if (form.revenue && !Number.isFinite(revenue!)) {
-      setError("Revenue must be a valid number.");
-      return;
-    }
-
-    const fixedCPM = form.fixedCPM ? Number(form.fixedCPM) : undefined;
-    if (form.fixedCPM && !Number.isFinite(fixedCPM!)) {
-      setError("Fixed CPM must be a valid number.");
-      return;
-    }
-
-    const wageCPM = form.wageCPM ? Number(form.wageCPM) : undefined;
-    if (form.wageCPM && !Number.isFinite(wageCPM!)) {
-      setError("Wage CPM must be a valid number.");
-      return;
-    }
-
-    const addOnsCPM = form.addOnsCPM ? Number(form.addOnsCPM) : undefined;
-    if (form.addOnsCPM && !Number.isFinite(addOnsCPM!)) {
-      setError("Add-ons CPM must be a valid number.");
-      return;
-    }
-
-    const rollingCPM = form.rollingCPM ? Number(form.rollingCPM) : undefined;
-    if (form.rollingCPM && !Number.isFinite(rollingCPM!)) {
-      setError("Rolling CPM must be a valid number.");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const response = await fetch("/api/trips", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId,
-          driver: driver.name,
-          driverId: driver.id,
-          unit: unit.code,
-          unitId: unit.id,
-          rateType: form.rateType || undefined,
-          rateZone: form.rateZone || undefined,
-          miles,
-          revenue,
-          fixedCPM,
-          wageCPM,
-          addOnsCPM,
-          rollingCPM,
-          tripStart: form.tripStart || undefined,
-          tripEnd: form.tripEnd || undefined,
-        }),
+    async function load() {
+      if (!f.type && !f.zone) return;
+      const q = new URLSearchParams({
+        ...(f.type ? { type: f.type } : {}),
+        ...(f.zone ? { zone: f.zone } : {}),
       });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        throw new Error(data?.error ?? "Failed to create trip.");
+      const res = await fetch(`/api/rates/lookup?${q.toString()}`);
+      const j = await res.json();
+      if (j.found) {
+        setResolved(j.resolved ?? null);
+        setF(p => ({
+          ...p,
+          fixedCPM: String(j.fixedCPM ?? ""),
+          wageCPM: String(j.wageCPM ?? ""),
+          addOnsCPM: String(j.addOnsCPM ?? ""),
+          rollingCPM: String(j.rollingCPM ?? ""),
+        }));
       }
-
-      const payload = await response.json();
-      if (payload?.tripId) {
-        router.push(`/trips/${payload.tripId}`);
-      } else {
-        router.push("/trips");
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to create trip. Please try again."
-      );
-    } finally {
-      setSubmitting(false);
     }
-  };
+    load();
+  }, [f.type, f.zone]);
 
-  const renderFeedback = (feedback: RateFeedback | null) => {
-    if (!feedback) return null;
-    const toneClass =
-      feedback.tone === "success"
-        ? "text-green-600"
-        : feedback.tone === "error"
-        ? "text-red-600"
-        : "text-gray-600";
-    return <p className={`text-sm ${toneClass}`}>{feedback.message}</p>;
-  };
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setErr(null);
+
+    const driver = drivers.find(d => d.id === f.driverId)?.name ?? "";
+    const unit = units.find(u => u.id === f.unitId)?.code ?? "";
+
+    const res = await fetch("/api/trips", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId,
+        driverId: f.driverId || undefined,
+        unitId: f.unitId || undefined,
+        driver,
+        unit,
+        miles: Number(f.miles),
+        revenue: f.revenue ? Number(f.revenue) : undefined,
+        type: f.type || undefined,
+        zone: f.zone || undefined,
+        fixedCPM: f.fixedCPM ? Number(f.fixedCPM) : undefined,
+        wageCPM: f.wageCPM ? Number(f.wageCPM) : undefined,
+        addOnsCPM: f.addOnsCPM ? Number(f.addOnsCPM) : undefined,
+        rollingCPM: f.rollingCPM ? Number(f.rollingCPM) : undefined,
+        tripStart: f.tripStart || undefined,
+        tripEnd: f.tripEnd || undefined,
+      }),
+    });
+
+    setLoading(false);
+    if (res.ok) {
+      const j = await res.json();
+      r.push(`/trips/${j.tripId}`);
+    } else {
+      const j = await res.json().catch(() => ({}));
+      setErr(j?.issues?.fieldErrors?.miles?.[0] ?? j?.error ?? "Failed to create trip");
+    }
+  }
+
+  const input = "w-full border rounded p-2";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
+    <form onSubmit={onSubmit} className="space-y-4">
+      {err && (
+        <div className="p-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded">
+          {err}
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="mb-1 block text-sm font-medium">Driver *</label>
-          <select
-            className={inputClass}
-            value={form.driverId}
-            onChange={(event) => updateForm("driverId", event.target.value)}
-            required
-          >
-            <option value="">Select a driver</option>
-            {drivers.map((driver) => (
-              <option key={driver.id} value={driver.id}>
-                {driver.name}
+          <label className="block text-sm">Driver *</label>
+          <select className={input} value={f.driverId} onChange={e => set("driverId", e.target.value)}>
+            <option value="">Select driver</option>
+            {drivers.map(d => (
+              <option key={d.id} value={d.id}>
+                {d.name}
               </option>
             ))}
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Unit *</label>
-          <select
-            className={inputClass}
-            value={form.unitId}
-            onChange={(event) => updateForm("unitId", event.target.value)}
-            required
-          >
-            <option value="">Select a unit</option>
-            {units.map((unit) => (
-              <option key={unit.id} value={unit.id}>
-                {unit.code}
+          <label className="block text-sm">Unit *</label>
+          <select className={input} value={f.unitId} onChange={e => set("unitId", e.target.value)}>
+            <option value="">Select unit</option>
+            {units.map(u => (
+              <option key={u.id} value={u.id}>
+                {u.code}
               </option>
             ))}
           </select>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="mb-1 block text-sm font-medium">Rate Type</label>
-          <select
-            className={inputClass}
-            value={form.rateType}
-            onChange={(event) => updateForm("rateType", event.target.value)}
-          >
-            <option value="">Select a rate type</option>
-            {rateTypes.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Rate Zone</label>
-          <select
-            className={inputClass}
-            value={form.rateZone}
-            onChange={(event) => updateForm("rateZone", event.target.value)}
-          >
-            <option value="">Select a rate zone</option>
-            {rateZones.map((zone) => (
-              <option key={zone} value={zone}>
-                {zone}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      {renderFeedback(rateFeedback)}
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-sm font-medium">Miles *</label>
+          <label className="block text-sm">Miles *</label>
           <input
-            className={inputClass}
+            className={input}
             type="number"
-            min="0"
-            step="0.1"
-            value={form.miles}
-            onChange={(event) => updateForm("miles", event.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Revenue</label>
-          <input
-            className={inputClass}
-            type="number"
-            min="0"
             step="0.01"
-            value={form.revenue}
-            onChange={(event) => updateForm("revenue", event.target.value)}
-          />
-        </div>
-      </div>
-
-      <div>
-        <h2 className="mb-2 text-sm font-semibold">CPM Breakdown</h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-sm font-medium">Fixed CPM</label>
-            <input
-              className={inputClass}
-              type="number"
-              min="0"
-              step="0.0001"
-              value={form.fixedCPM}
-              onChange={(event) => updateForm("fixedCPM", event.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Wage CPM</label>
-            <input
-              className={inputClass}
-              type="number"
-              min="0"
-              step="0.0001"
-              value={form.wageCPM}
-              onChange={(event) => updateForm("wageCPM", event.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Add-ons CPM</label>
-            <input
-              className={inputClass}
-              type="number"
-              min="0"
-              step="0.0001"
-              value={form.addOnsCPM}
-              onChange={(event) => updateForm("addOnsCPM", event.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Rolling CPM</label>
-            <input
-              className={inputClass}
-              type="number"
-              min="0"
-              step="0.0001"
-              value={form.rollingCPM}
-              onChange={(event) => updateForm("rollingCPM", event.target.value)}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-sm font-medium">Trip Start</label>
-          <input
-            className={inputClass}
-            type="datetime-local"
-            value={form.tripStart}
-            onChange={(event) => updateForm("tripStart", event.target.value)}
+            value={f.miles}
+            onChange={e => set("miles", e.target.value)}
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Trip End</label>
+          <label className="block text-sm">Revenue (optional)</label>
           <input
-            className={inputClass}
-            type="datetime-local"
-            value={form.tripEnd}
-            onChange={(event) => updateForm("tripEnd", event.target.value)}
+            className={input}
+            type="number"
+            step="0.01"
+            value={f.revenue}
+            onChange={e => set("revenue", e.target.value)}
           />
         </div>
       </div>
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="rounded bg-black px-4 py-2 text-white disabled:opacity-60"
-      >
-        {submitting ? "Booking..." : "Create Trip"}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm">Type</label>
+          <select className={input} value={f.type} onChange={e => set("type", e.target.value)}>
+            <option value="">(none)</option>
+            {types.map(t => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm">Zone</label>
+          <select className={input} value={f.zone} onChange={e => set("zone", e.target.value)}>
+            <option value="">(none)</option>
+            {zones.map(z => (
+              <option key={z} value={z}>
+                {z}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <details className="border rounded p-3">
+        <summary className="cursor-pointer">CPM components</summary>
+        <div className="grid grid-cols-2 gap-4 mt-3">
+          {(["fixedCPM", "wageCPM", "addOnsCPM", "rollingCPM"] as const).map(k => (
+            <div key={k}>
+              <label className="block text-sm">{k}</label>
+              <input
+                className={input}
+                type="number"
+                step="0.0001"
+                value={(f as any)[k]}
+                onChange={e => set(k as any, e.target.value)}
+              />
+            </div>
+          ))}
+        </div>
+        {resolved && (
+          <p className="text-xs text-gray-600 mt-2">
+            Using rate: Type = {resolved.type ?? "(any)"} | Zone = {resolved.zone ?? "(any)"}
+          </p>
+        )}
+      </details>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm">Trip Start</label>
+          <input
+            className={input}
+            type="datetime-local"
+            value={f.tripStart}
+            onChange={e => set("tripStart", e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-sm">Trip End</label>
+          <input
+            className={input}
+            type="datetime-local"
+            value={f.tripEnd}
+            onChange={e => set("tripEnd", e.target.value)}
+          />
+        </div>
+      </div>
+
+      <button disabled={loading} className="px-4 py-2 rounded bg-black text-white">
+        {loading ? "Booking..." : "Create Trip"}
       </button>
     </form>
   );

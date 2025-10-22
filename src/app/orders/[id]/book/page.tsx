@@ -1,46 +1,29 @@
-import prisma from "@/server/prisma";
-import UiTripForm from "./ui-trip-form";
+import prisma from "@/server/prisma"; // if your helper exports { prisma }, change to: import { prisma } from "@/server/prisma";
+import TripForm from "./ui-trip-form";
 
-type Props = { params: Promise<{ id: string }> };
+export default async function BookTripPage({ params }: { params: { id: string } }) {
+  const order = await prisma.order.findUnique({ where: { id: params.id } });
+  if (!order) return <main className="p-6">Order not found.</main>;
 
-export default async function BookTripPage({ params }: Props) {
-  const { id } = await params;
-  const order = await prisma.order.findUnique({ where: { id } });
-  if (!order) {
-    return <main className="p-6">Order not found.</main>;
-  }
+  const drivers = await prisma.driver.findMany({
+    where: { active: true },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
 
-  const [drivers, units, rates] = await Promise.all([
-    prisma.driver.findMany({
-      where: { active: true },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-    prisma.unit.findMany({
-      where: { active: true },
-      orderBy: { code: "asc" },
-      select: { id: true, code: true },
-    }),
-    prisma.rate.findMany({
-      select: { type: true, zone: true },
-    }),
-  ]);
+  const units = await prisma.unit.findMany({
+    where: { active: true },
+    orderBy: { code: "asc" },
+    select: { id: true, code: true },
+  });
 
-  const rateTypes = Array.from(
-    new Set(
-      rates
-        .map((rate) => rate.type)
-        .filter((type): type is string => Boolean(type))
-    )
-  ).sort((a, b) => a.localeCompare(b));
+  const types = (await prisma.rate.findMany({ distinct: ["type"], select: { type: true } }))
+    .map(r => r.type)
+    .filter(Boolean) as string[];
 
-  const rateZones = Array.from(
-    new Set(
-      rates
-        .map((rate) => rate.zone)
-        .filter((zone): zone is string => Boolean(zone))
-    )
-  ).sort((a, b) => a.localeCompare(b));
+  const zones = (await prisma.rate.findMany({ distinct: ["zone"], select: { zone: true } }))
+    .map(r => r.zone)
+    .filter(Boolean) as string[];
 
   return (
     <main className="max-w-xl mx-auto p-6">
@@ -48,12 +31,12 @@ export default async function BookTripPage({ params }: Props) {
       <p className="text-sm text-gray-600 mb-6">
         {order.customer}: {order.origin} → {order.destination}
       </p>
-      <UiTripForm
+      <TripForm
         orderId={order.id}
         drivers={drivers}
         units={units}
-        rateTypes={rateTypes}
-        rateZones={rateZones}
+        types={types}
+        zones={zones}
       />
     </main>
   );
