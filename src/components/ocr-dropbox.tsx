@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 
-import { parseOrderFromText } from "@/lib/parse-order";
+import { parseOcrToOrder } from "@/lib/ocr";
+import type { ParsedOrder } from "@/lib/ocr";
 
 export type OcrResult = {
   ok?: boolean;
   ocrConfidence?: number;
   text?: string;
-  parsed?: unknown;
+  parsed?: ParsedOrder;
   error?: string;
 };
 
@@ -35,8 +37,10 @@ async function loadTesseract() {
 
 export default function OcrDropBox({
   onParsed,
+  actions,
 }: {
   onParsed: (r: OcrResult) => void;
+  actions?: ReactNode;
 }) {
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -101,7 +105,7 @@ export default function OcrDropBox({
         },
       });
       const text = data.text ?? "";
-      const parsed = parseOrderFromText(text);
+      const parsed = parseOcrToOrder(text);
       onParsed({ ok: true, ocrConfidence: data.confidence, text, parsed });
       setProgress(1);
       setStatus("Text captured from image.");
@@ -133,7 +137,7 @@ export default function OcrDropBox({
       aria-busy={busy}
       role="region"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <div className="font-medium text-gray-800">Paste or drop an order screenshot</div>
           <div>
@@ -141,10 +145,15 @@ export default function OcrDropBox({
             <br />• or drag an image file onto this box
           </div>
         </div>
-        {busy && (
-          <div className="flex items-center gap-2 text-sm text-gray-500" aria-live="polite">
-            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-gray-400" aria-hidden />
-            <span>{status ?? "Reading…"}</span>
+        {(actions || busy) && (
+          <div className="flex items-center gap-2 text-sm">
+            {actions}
+            {busy && (
+              <div className="flex items-center gap-2 text-gray-500" aria-live="polite">
+                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-gray-400" aria-hidden />
+                <span>{status ?? "Reading…"}</span>
+              </div>
+            )}
           </div>
         )}
       </div>
