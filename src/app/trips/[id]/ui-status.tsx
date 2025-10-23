@@ -23,7 +23,7 @@ export default function TripStatusButtons({
 
     try {
       const res = await fetch(`/api/trips/${tripId}/status`, {
-        method: "PATCH",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: nextStatus }),
       });

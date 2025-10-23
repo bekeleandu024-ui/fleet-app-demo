@@ -111,3 +111,17 @@ export const TripCreate = z
   })
   .strip();
 
+export const TripStatus = z.enum([
+  "Created",
+  "Dispatched",
+  "InProgress",
+  "Completed",
+  "Cancelled",
+]);
+
+export const TripStatusUpdate = z
+  .object({
+    status: TripStatus,
+  })
+  .strip();
+

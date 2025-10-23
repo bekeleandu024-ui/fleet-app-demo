@@ -1,13 +1,10 @@
 // src/lib/trip-statuses.ts
-export const TRIP_STATUSES = [
-  "Created",
-  "Dispatched",
-  "In Transit",
-  "Completed",
-] as const;
+import { TripStatus as TripStatusSchema } from "./schemas";
+
+export const TRIP_STATUSES = TripStatusSchema.options;
 
 export type TripStatus = (typeof TRIP_STATUSES)[number];
 
 export function isTripStatus(value: string): value is TripStatus {
-  return TRIP_STATUSES.some((status) => status === value);
+  return TripStatusSchema.safeParse(value).success;
 }

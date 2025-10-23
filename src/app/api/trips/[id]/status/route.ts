@@ -1,63 +1,47 @@
-// src/app/api/trips/[id]/status/route.ts
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import prisma from "@/server/prisma";
-import { isTripStatus, TRIP_STATUSES } from "@/lib/trip-statuses";
+import { TripStatusUpdate, TripStatus } from "@/lib/schemas";
 
-export async function PATCH(
+type TripStatusValue = (typeof TripStatus.Enum)[keyof typeof TripStatus.Enum];
+
+const ALLOWED: Record<TripStatusValue, TripStatusValue[]> = {
+  Created: ["Dispatched", "Cancelled"],
+  Dispatched: ["InProgress", "Cancelled"],
+  InProgress: ["Completed", "Cancelled"],
+  Completed: [],
+  Cancelled: [],
+};
+
+export async function POST(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const body = await req.json();
+  const parsed = TripStatusUpdate.safeParse(body);
+  if (!parsed.success)
+    return NextResponse.json({ error: "Invalid" }, { status: 400 });
 
-  const status =
-    typeof body === "object" && body !== null && "status" in body
-      ? (body as { status?: unknown }).status
-      : undefined;
+  const t = await prisma.trip.findUnique({ where: { id: params.id } });
+  if (!t) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  if (typeof status !== "string") {
+  const next = parsed.data.status;
+  if (!ALLOWED[t.status as keyof typeof ALLOWED]?.includes(next)) {
     return NextResponse.json(
-      { error: "status must be provided as a string" },
+      { error: `Illegal transition: ${t.status} → ${next}` },
+      { status: 400 }
+    );
+  }
+  if (next === "Completed" && (!t.tripEnd || Number(t.miles) <= 0)) {
+    return NextResponse.json(
+      { error: "To complete, set Trip End and Miles > 0" },
       { status: 400 }
     );
   }
 
-  const nextStatus = status.trim();
-  if (!isTripStatus(nextStatus)) {
-    return NextResponse.json(
-      { error: "status must be one of: " + TRIP_STATUSES.join(", ") },
-      { status: 400 }
-    );
-  }
-
-  try {
-    const updated = await prisma.trip.update({
-      where: { id: params.id },
-      data: { status: nextStatus },
-      select: { id: true, status: true },
-    });
-
-    return NextResponse.json({ ok: true, trip: updated });
-  } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
-      return NextResponse.json(
-        { error: "Trip not found" },
-        { status: 404 }
-      );
-    }
-
-    console.error("Failed to update trip status", error);
-    return NextResponse.json(
-      { error: "Failed to update trip status" },
-      { status: 500 }
-    );
-  }
+  const u = await prisma.trip.update({
+    where: { id: t.id },
+    data: { status: next },
+    select: { id: true, status: true },
+  });
+  return NextResponse.json({ ok: true, tripId: u.id, status: u.status });
 }
