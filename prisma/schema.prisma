@@ -122,3 +122,17 @@ model Rate {
   @@index([type])
   @@index([zone])
 }
+
+model RateSetting {
+  id        String   @id @default(cuid())
+  rateKey   String
+  category  String
+  value     Decimal
+  unit      String
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([rateKey, category])
+  @@index([category])
+}
