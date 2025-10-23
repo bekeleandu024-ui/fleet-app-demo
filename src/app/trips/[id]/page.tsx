@@ -1,58 +1,98 @@
-// src/app/trips/[id]/page.tsx
 import prisma from "@/server/prisma";
-import AddEvent from "./ui-add-event";
-import TripStatusButtons from "./ui-status";
+import Link from "next/link";
 
-type PageProps = { params: { id: string } };
+function num(n: any) {
+  return n == null ? "-" : Number(n).toFixed(2);
+}
 
-export default async function Page({ params }: PageProps) {
-  const trip = await prisma.trip.findUnique({
-    where: { id: params.id },
-    include: { events: { orderBy: { at: "asc" } } },
-  });
-
-  if (!trip) {
-    return <main className="p-6">Trip not found.</main>;
-  }
+export default async function TripDetail({ params }: { params: { id: string } }) {
+  const t = await prisma.trip.findUnique({ where: { id: params.id } });
+  if (!t) return <main className="p-6">Not found</main>;
 
   return (
-    <main className="max-w-3xl mx-auto p-6 space-y-6">
-      <section className="p-4 border rounded-lg">
-        <h1 className="text-xl font-bold mb-2">Trip</h1>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div><b>Driver:</b> {trip.driver}</div>
-          <div><b>Unit:</b> {trip.unit}</div>
-          <div><b>Miles:</b> {trip.miles.toString()}</div>
-          <div><b>Revenue:</b> {trip.revenue?.toString() ?? "-"}</div>
-          <div><b>Total Cost:</b> {trip.totalCost?.toString() ?? "-"}</div>
-          <div>
-            <b>Margin %:</b>{" "}
-            {trip.marginPct != null ? (Number(trip.marginPct) * 100).toFixed(1) + "%" : "-"}
-          </div>
-          <div><b>Status:</b> {trip.status}</div>
+    <main className="max-w-3xl mx-auto p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Trip {t.id.slice(0, 8)}</h1>
+        <div className="flex gap-2">
+          <Link className="px-3 py-2 rounded border" href={`/trips/${t.id}/edit`}>
+            Edit
+          </Link>
+          <form action={`/api/trips/${t.id}/recalc`} method="post">
+            <button className="px-3 py-2 rounded border" formMethod="post">
+              Recalc totals
+            </button>
+          </form>
         </div>
-      </section>
+      </div>
 
-      <section className="p-4 border rounded-lg">
-        <h2 className="font-semibold mb-2">Status</h2>
-        <TripStatusButtons tripId={trip.id} status={trip.status} />
-      </section>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="border rounded p-3">
+          <div className="text-sm text-gray-600">Driver / Unit</div>
+          <div className="font-medium">
+            {t.driver} • {t.unit}
+          </div>
+          <div className="text-sm mt-1">
+            {t.type ?? "(no type)"} • {t.zone ?? "(no zone)"}
+          </div>
+        </div>
+        <div className="border rounded p-3">
+          <div className="text-sm text-gray-600">Status</div>
+          <div className="font-medium">{t.status}</div>
+        </div>
+      </div>
 
-      <section className="p-4 border rounded-lg">
-        <h2 className="font-semibold mb-2">Tracking</h2>
-        <AddEvent tripId={trip.id} />
-        <ol className="mt-4 space-y-2">
-          {trip.events.map((ev) => (
-            <li key={ev.id} className="border rounded p-2 text-sm">
-              <b>{ev.type}</b> — {new Date(ev.at).toLocaleString()}{" "}
-              {ev.location ? `@ ${ev.location}` : ""} {ev.notes ? `— ${ev.notes}` : ""}
-            </li>
-          ))}
-          {trip.events.length === 0 && (
-            <li className="text-gray-600 text-sm">No events yet.</li>
-          )}
-        </ol>
-      </section>
+      <div className="border rounded p-3">
+        <div className="font-medium mb-2">Costing</div>
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div>Fixed/Wage/AddOns/Rolling CPM</div>
+          <div className="text-right">
+            {num(t.fixedCPM)} / {num(t.wageCPM)} / {num(t.addOnsCPM)} / {num(t.rollingCPM)}
+          </div>
+          <div>Miles • Total CPM</div>
+          <div className="text-right">
+            {num(t.miles)} • {num(t.totalCPM)}
+          </div>
+          <div>Total Cost</div>
+          <div className="text-right font-semibold">{num(t.totalCost)}</div>
+          <div>Revenue • Profit</div>
+          <div className="text-right">
+            {num(t.revenue)} • {num(t.profit)}
+          </div>
+          <div>Margin</div>
+          <div className="text-right">
+            {t.marginPct == null ? "-" : (Number(t.marginPct) * 100).toFixed(1) + "%"}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <StatusButtons id={t.id} status={t.status} hasEnd={!!t.tripEnd} miles={Number(t.miles)} />
+      </div>
     </main>
+  );
+}
+
+function StatusButtons({ id, status }: { id: string; status: string; hasEnd: boolean; miles: number }) {
+  "use client";
+  async function setStatus(s: string) {
+    const res = await fetch(`/api/trips/${id}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: s }),
+    });
+    if (res.ok) location.reload();
+    else alert(await res.text());
+  }
+  const Btn = (p: any) => <button className="px-3 py-2 rounded border" {...p} />;
+
+  return (
+    <div className="space-x-2">
+      {status === "Created" && <Btn onClick={() => setStatus("Dispatched")}>Dispatch</Btn>}
+      {status === "Dispatched" && <Btn onClick={() => setStatus("InProgress")}>Start</Btn>}
+      {status === "InProgress" && <Btn onClick={() => setStatus("Completed")}>Complete</Btn>}
+      {(status === "Created" || status === "Dispatched" || status === "InProgress") && (
+        <Btn onClick={() => setStatus("Cancelled")}>Cancel</Btn>
+      )}
+    </div>
   );
 }
