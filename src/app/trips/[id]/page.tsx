@@ -12,16 +12,14 @@ export default async function TripDetail({ params }: { params: { id: string } })
   return (
     <main className="max-w-3xl mx-auto p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Trip {t.id.slice(0, 8)}</h1>
+        <h1 className="text-2xl font-bold">Trip {t.id}</h1>
         <div className="flex gap-2">
           <Link className="px-3 py-2 rounded border" href={`/trips/${t.id}/edit`}>
             Edit
           </Link>
-          <form action={`/api/trips/${t.id}/recalc`} method="post">
-            <button className="px-3 py-2 rounded border" formMethod="post">
-              Recalc totals
-            </button>
-          </form>
+          <Link className="px-3 py-2 rounded border" href={`/trips/${t.id}/recalc`}>
+            Recalc totals
+          </Link>
         </div>
       </div>
 
