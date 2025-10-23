@@ -1,7 +1,20 @@
 import { Buffer } from "node:buffer";
 import { NextResponse } from "next/server";
-import Tesseract from "tesseract.js";
 import { parseOrderFromText } from "@/lib/parse-order";
+
+type TesseractModule = typeof import("tesseract.js");
+
+let tesseractModulePromise: Promise<TesseractModule> | undefined;
+
+async function loadTesseract(): Promise<TesseractModule> {
+  if (!tesseractModulePromise) {
+    tesseractModulePromise = import("tesseract.js").then((mod) =>
+      (mod.default ?? mod) as TesseractModule,
+    );
+  }
+
+  return tesseractModulePromise;
+}
 
 export const runtime = "nodejs";
 
@@ -17,6 +30,7 @@ export async function POST(req: Request) {
     const ab = await file.arrayBuffer();
     const buf = Buffer.from(ab);
 
+    const Tesseract = await loadTesseract();
     const { data } = await Tesseract.recognize(buf, "eng");
     const text = data.text || "";
     const parsed = parseOrderFromText(text);
