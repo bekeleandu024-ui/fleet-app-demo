@@ -3,10 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "prisma:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
+    "predev": "npm run prisma:migrate",
     "dev": "next dev",
     "build": "next build",
+    "prestart": "npm run prisma:migrate",
     "start": "next start",
     "lint": "next lint",
+    "preseed": "npm run prisma:migrate",
     "seed": "node prisma/seed.cjs"
   },
   "dependencies": {

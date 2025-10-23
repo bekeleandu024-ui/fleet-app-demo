@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Fleet App Demo
 
-## Getting Started
+A small Next.js application used to explore fleet operations workflows. It relies on a local SQLite
+instance managed through Prisma.
 
-First, run the development server:
+## Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js 18 or newer
+- npm (bundled with Node.js)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Getting started
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Copy the example environment file and set up the Prisma database url if you need a custom
+   location:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   ```bash
+   cp .env.example .env.local
+   ```
 
-## Learn More
+   The default value in the example file points Prisma at `prisma/dev.db` inside this repository.
 
-To learn more about Next.js, take a look at the following resources:
+2. Install dependencies:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   ```bash
+   npm install
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. Apply the database migrations and load the demo seed data:
 
-## Deploy on Vercel
+   ```bash
+   npm run seed
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   The `preseed` script automatically runs the pending Prisma migrations before executing the seeding
+   routine. You can run the same migration step on its own with `npm run prisma:migrate`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. Start the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+   The dev and production start commands now run the migration step automatically, which prevents
+   `PrismaClientKnownRequestError` messages such as `The table main.RateSetting does not exist` when
+   new tables are added.
+
+Open [http://localhost:3000](http://localhost:3000) to explore the app once the server is running.
+
+## Scripts
+
+- `npm run prisma:migrate` – apply the latest Prisma migrations to the configured database
+- `npm run seed` – apply migrations and seed the database with demo data
+- `npm run dev` – run the Next.js development server (migrations are applied first)
+- `npm run build` – build the production bundle
+- `npm run start` – start the production server (migrations are applied first)
+- `npm run lint` – run the project lint checks
