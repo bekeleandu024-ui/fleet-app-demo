@@ -12,6 +12,11 @@ const links = [
     description: "Track trip performance and status.",
   },
   {
+    href: "/live-fleet",
+    title: "Fleet map",
+    description: "Monitor truck positions and current assignments.",
+  },
+  {
     href: "/drivers",
     title: "Drivers",
     description: "Manage driver profiles and availability.",
