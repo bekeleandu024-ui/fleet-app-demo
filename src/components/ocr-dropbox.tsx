@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { parseOrderFromText } from "@/lib/parse-order";
+
 export type OcrResult = {
   ok?: boolean;
   ocrConfidence?: number;
@@ -10,6 +12,27 @@ export type OcrResult = {
   error?: string;
 };
 
+type TesseractModule = typeof import("tesseract.js") extends { default: infer D }
+  ? D
+  : never;
+
+type LoggerMessage = { status: string; progress?: number };
+
+let tesseractPromise: Promise<TesseractModule> | null = null;
+
+const toneClass = {
+  info: "text-gray-500",
+  error: "text-red-600",
+  success: "text-green-600",
+} as const;
+
+async function loadTesseract() {
+  if (!tesseractPromise) {
+    tesseractPromise = import("tesseract.js").then(mod => mod.default ?? (mod as unknown as TesseractModule));
+  }
+  return tesseractPromise;
+}
+
 export default function OcrDropBox({
   onParsed,
 }: {
@@ -17,7 +40,11 @@ export default function OcrDropBox({
 }) {
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [statusTone, setStatusTone] = useState<"info" | "error" | "success">("info");
+  const [progress, setProgress] = useState(0);
   const boxRef = useRef<HTMLDivElement>(null);
+  const previewUrl = useRef<string | null>(null);
 
   // Paste handler
   useEffect(() => {
@@ -37,25 +64,64 @@ export default function OcrDropBox({
 
   function onDrop(e: React.DragEvent) {
     e.preventDefault();
+    if (busy) return;
     const f = e.dataTransfer.files?.[0];
     if (f && f.type.startsWith("image/")) upload(f);
   }
 
   async function upload(file: File) {
+    if (busy) return;
     setBusy(true);
-    setPreview(URL.createObjectURL(file));
+    setStatus("Loading OCR engine…");
+    setStatusTone("info");
+    setProgress(0);
+    const url = URL.createObjectURL(file);
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    previewUrl.current = url;
+    setPreview(url);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/ocr/order", { method: "POST", body: fd });
-      const j = (await res.json()) as OcrResult;
-      onParsed(res.ok ? j : { ...j, ok: false });
+      const tesseract = await loadTesseract();
+      const { data } = await tesseract.recognize(file, "eng", {
+        logger: (message: LoggerMessage) => {
+          if (!message?.status) return;
+          setStatusTone("info");
+          if (message.status === "recognizing text") {
+            const pct = Math.round((message.progress ?? 0) * 100);
+            setProgress(message.progress ?? 0);
+            setStatus(`Reading text… ${pct}%`);
+          } else if (message.status === "initializing api") {
+            setStatus("Preparing reader…");
+          } else if (message.status === "loading language traineddata") {
+            setStatus("Loading language data…");
+          } else if (message.status === "loading tesseract core") {
+            setStatus("Loading OCR engine…");
+          } else {
+            setStatus(`${message.status.charAt(0).toUpperCase()}${message.status.slice(1)}…`);
+          }
+        },
+      });
+      const text = data.text ?? "";
+      const parsed = parseOrderFromText(text);
+      onParsed({ ok: true, ocrConfidence: data.confidence, text, parsed });
+      setProgress(1);
+      setStatus("Text captured from image.");
+      setStatusTone("success");
     } catch (e: any) {
-      onParsed({ error: e?.message || "Upload failed" });
+      const message = e?.message || "OCR failed";
+      onParsed({ ok: false, error: message });
+      setStatus(message);
+      setStatusTone("error");
+      setProgress(0);
     } finally {
       setBusy(false);
     }
   }
+
+  useEffect(() => () => {
+    if (previewUrl.current) {
+      URL.revokeObjectURL(previewUrl.current);
+    }
+  }, []);
 
   const base = "border-2 border-dashed rounded p-4 text-sm text-gray-600";
   return (
@@ -75,8 +141,27 @@ export default function OcrDropBox({
             <br />• or drag an image file onto this box
           </div>
         </div>
-        {busy && <div className="animate-pulse">Reading…</div>}
+        {busy && (
+          <div className="flex items-center gap-2 text-sm text-gray-500" aria-live="polite">
+            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-gray-400" aria-hidden />
+            <span>{status ?? "Reading…"}</span>
+          </div>
+        )}
       </div>
+
+      {status && (
+        <div className={`mt-3 text-sm ${toneClass[statusTone]}`} aria-live="polite">
+          {status}
+          {busy && (
+            <div className="mt-2 h-1 w-full overflow-hidden rounded bg-gray-200">
+              <div
+                className="h-full rounded bg-blue-500 transition-all duration-200"
+                style={{ width: `${Math.min(100, Math.max(0, Math.round(progress * 100))) || 0}%` }}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {preview && (
         <div className="mt-3">
