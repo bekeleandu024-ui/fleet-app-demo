@@ -11,7 +11,12 @@ export default async function LiveFleetPage() {
       <header className="space-y-2">
         <h1 className="text-3xl font-bold">Live fleet operations</h1>
         <p className="text-sm text-gray-600">
-          Monitor truck assignments and availability across the network.
+          Monitor truck assignments and availability across the network with a live, interactive
+          fleet map.
+          <span className="mt-1 block text-xs text-gray-500">
+            Select a unit on the map or from the list to focus its current status and recent
+            updates.
+          </span>
         </p>
       </header>
 
