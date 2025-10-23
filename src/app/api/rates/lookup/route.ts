@@ -80,21 +80,22 @@ export async function POST(req: Request) {
 
   const payload = body as Record<string, unknown>;
   const orderId = typeof payload.orderId === "string" ? payload.orderId : undefined;
-  if (!orderId) {
-    return NextResponse.json({ error: "orderId is required" }, { status: 400 });
-  }
 
-  const order = await prisma.order.findUnique({ where: { id: orderId } });
-  if (!order) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  }
+  let inferredZone: string | undefined;
 
-  const inferredZone = inferZone({
-    origin: order.origin,
-    destination: order.destination,
-    notes: order.notes,
-    requiredTruck: order.requiredTruck,
-  });
+  if (orderId) {
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    inferredZone = inferZone({
+      origin: order.origin,
+      destination: order.destination,
+      notes: order.notes,
+      requiredTruck: order.requiredTruck,
+    });
+  }
 
   const inferredType = await resolveDriverType(
     typeof payload.driver === "string" ? payload.driver : undefined,

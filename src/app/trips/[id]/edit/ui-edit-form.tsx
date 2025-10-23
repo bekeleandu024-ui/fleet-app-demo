@@ -21,21 +21,103 @@ export default function EditForm({ trip, drivers, units, types, zones }:
     rollingCPM: trip.rollingCPM == null ? "" : String(trip.rollingCPM),
     tripStart: trip.tripStart ? new Date(trip.tripStart).toISOString().slice(0,16) : "",
     tripEnd:   trip.tripEnd ?   new Date(trip.tripEnd).toISOString().slice(0,16) : "",
+    rateId: trip.rateId ?? "",
   });
 
-  function s<K extends keyof typeof f>(k: K, v: string) { setF(p => ({ ...p, [k]: v })); }
+  function s<K extends keyof typeof f>(k: K, v: string) {
+    setF((prev) => {
+      const next = { ...prev, [k]: v };
+      if (k === "driverId" || k === "unitId" || k === "type" || k === "zone") {
+        next.rateId = "";
+      }
+      return next;
+    });
+  }
   const input = "w-full border rounded p-2";
 
+  const [autofilling, setAutofilling] = useState(false);
+  const [autofillMessage, setAutofillMessage] = useState<string | null>(null);
+  const [autofillError, setAutofillError] = useState<string | null>(null);
+
   async function autofill() {
-    const q = new URLSearchParams({ ...(f.type?{type:f.type}:{}), ...(f.zone?{zone:f.zone}:{}) });
-    const res = await fetch(`/api/rates/lookup?${q.toString()}`);
-    const j = await res.json();
-    if (j.found) setF(p => ({ ...p,
-      fixedCPM: String(j.fixedCPM ?? ""),
-      wageCPM:  String(j.wageCPM ?? ""),
-      addOnsCPM:String(j.addOnsCPM ?? ""),
-      rollingCPM:String(j.rollingCPM ?? ""),
-    }));
+    setAutofilling(true);
+    setAutofillMessage(null);
+    setAutofillError(null);
+
+    const driverName = f.driverId
+      ? drivers.find((d) => d.id === f.driverId)?.name ?? ""
+      : f.driver;
+    const unitCode = f.unitId
+      ? units.find((u) => u.id === f.unitId)?.code ?? ""
+      : f.unit;
+
+    const payload: Record<string, string> = {};
+    if (trip.orderId) payload.orderId = trip.orderId;
+    if (driverName.trim()) payload.driver = driverName.trim();
+    if (unitCode.trim()) payload.unit = unitCode.trim();
+    if (f.type.trim()) payload.type = f.type.trim();
+    if (f.zone.trim()) payload.zone = f.zone.trim();
+
+    try {
+      const res = await fetch("/api/rates/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        setAutofillError("Failed to look up rate.");
+        return;
+      }
+
+      const data = await res.json();
+
+      setF((prev) => {
+        const next = { ...prev };
+
+        if (!prev.type && typeof data.type === "string" && data.type) {
+          next.type = data.type;
+        }
+        if (!prev.zone && typeof data.zone === "string" && data.zone) {
+          next.zone = data.zone;
+        }
+
+        if (data.found) {
+          next.fixedCPM = data.fixedCPM != null ? String(data.fixedCPM) : "";
+          next.wageCPM = data.wageCPM != null ? String(data.wageCPM) : "";
+          next.addOnsCPM = data.addOnsCPM != null ? String(data.addOnsCPM) : "";
+          next.rollingCPM = data.rollingCPM != null ? String(data.rollingCPM) : "";
+          next.rateId = typeof data.rateId === "string" ? data.rateId : "";
+        } else {
+          next.rateId = "";
+        }
+
+        return next;
+      });
+
+      if (data.found) {
+        setAutofillMessage(
+          `Using rate: Type = ${
+            typeof data.type === "string" && data.type ? data.type : "(any)"
+          } | Zone = ${
+            typeof data.zone === "string" && data.zone ? data.zone : "(any)"
+          }`
+        );
+      } else {
+        const typeHint =
+          typeof data.type === "string" && data.type ? data.type : "(any)";
+        const zoneHint =
+          typeof data.zone === "string" && data.zone ? data.zone : "(any)";
+        setAutofillMessage(
+          `No matching rate found (suggested Type = ${typeHint}, Zone = ${zoneHint}).`
+        );
+      }
+    } catch (error) {
+      console.error("Failed to look up rate", error);
+      setAutofillError("Failed to look up rate.");
+    } finally {
+      setAutofilling(false);
+    }
   }
 
   async function save(e: React.FormEvent) {
@@ -54,6 +136,7 @@ export default function EditForm({ trip, drivers, units, types, zones }:
       rollingCPM:f.rollingCPM=== "" ? null : Number(f.rollingCPM),
       tripStart: f.tripStart || null,
       tripEnd:   f.tripEnd   || null,
+      rateId: f.rateId || null,
     };
     const res = await fetch(`/api/trips/${trip.id}`, { method:"PATCH", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
     if (res.ok) r.push(`/trips/${trip.id}`); else alert(await res.text());
@@ -98,9 +181,22 @@ export default function EditForm({ trip, drivers, units, types, zones }:
           </div>
         </div>
 
-        <button type="button" onClick={autofill} className="px-3 py-2 rounded border">
-          Auto-fill CPM from rate
-        </button>
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={autofill}
+            className="px-3 py-2 rounded border"
+            disabled={autofilling}
+          >
+            {autofilling ? "Looking up..." : "Auto-fill CPM from rate"}
+          </button>
+          {autofillMessage && (
+            <p className="text-xs text-gray-600">{autofillMessage}</p>
+          )}
+          {autofillError && (
+            <p className="text-xs text-red-600">{autofillError}</p>
+          )}
+        </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div><label className="block text-sm">Miles *</label>

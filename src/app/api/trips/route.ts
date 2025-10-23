@@ -32,22 +32,39 @@ export async function POST(req: Request) {
   let wageCPM = b.wageCPM ?? undefined;
   let addOnsCPM = b.addOnsCPM ?? undefined;
   let rollingCPM = b.rollingCPM ?? undefined;
-  let rateId: string | null = null;
+  let rateId: string | null = b.rateId ?? null;
 
-  if (requestedType || requestedZone) {
-    // fallback order: exact -> type-only -> zone-only -> global default (both null)
+  async function applyRate(rateIdToUse: string | null) {
+    if (!rateIdToUse) return;
+    const rate = await prisma.rate.findUnique({ where: { id: rateIdToUse } });
+    if (!rate) {
+      rateId = null;
+      return;
+    }
+    rateId = rate.id;
+    if (fixedCPM == null) fixedCPM = Number(rate.fixedCPM);
+    if (wageCPM == null) wageCPM = Number(rate.wageCPM);
+    if (addOnsCPM == null) addOnsCPM = Number(rate.addOnsCPM);
+    if (rollingCPM == null) rollingCPM = Number(rate.rollingCPM);
+  }
+
+  await applyRate(rateId);
+
+  if (!rateId && (requestedType || requestedZone)) {
     const tryExact =
       requestedType && requestedZone
         ? await prisma.rate.findFirst({ where: { type: requestedType, zone: requestedZone } })
         : null;
 
-    const tryType = !tryExact && requestedType
-      ? await prisma.rate.findFirst({ where: { type: requestedType, zone: null } })
-      : null;
+    const tryType =
+      !tryExact && requestedType
+        ? await prisma.rate.findFirst({ where: { type: requestedType, zone: null } })
+        : null;
 
-    const tryZone = !tryExact && !tryType && requestedZone
-      ? await prisma.rate.findFirst({ where: { zone: requestedZone, type: null } })
-      : null;
+    const tryZone =
+      !tryExact && !tryType && requestedZone
+        ? await prisma.rate.findFirst({ where: { zone: requestedZone, type: null } })
+        : null;
 
     const tryDefault =
       !tryExact && !tryType && !tryZone
@@ -57,11 +74,7 @@ export async function POST(req: Request) {
     const rate = tryExact ?? tryType ?? tryZone ?? tryDefault;
 
     if (rate) {
-      rateId = rate.id;
-      if (fixedCPM == null) fixedCPM = Number(rate.fixedCPM);
-      if (wageCPM == null) wageCPM = Number(rate.wageCPM);
-      if (addOnsCPM == null) addOnsCPM = Number(rate.addOnsCPM);
-      if (rollingCPM == null) rollingCPM = Number(rate.rollingCPM);
+      await applyRate(rate.id);
     }
   }
 

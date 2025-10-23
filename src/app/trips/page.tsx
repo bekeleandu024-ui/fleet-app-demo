@@ -38,21 +38,39 @@ export default async function TripsPage() {
                 <th className="px-4 py-2 text-left font-semibold">Total Cost</th>
                 <th className="px-4 py-2 text-left font-semibold">Margin %</th>
                 <th className="px-4 py-2 text-left font-semibold">Status</th>
+                <th className="px-4 py-2 text-left font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y text-sm">
               {trips.map((trip) => (
-                <Link key={trip.id} href={`/trips/${trip.id}`} className="contents">
-                  <tr className="hover:bg-gray-50">
-                    <td className="px-4 py-2 font-medium text-gray-900">{trip.driver}</td>
-                    <td className="px-4 py-2 text-gray-700">{trip.unit}</td>
-                    <td className="px-4 py-2 text-gray-700">{formatDecimal(trip.miles)}</td>
-                    <td className="px-4 py-2 text-gray-700">{formatDecimal(trip.revenue)}</td>
-                    <td className="px-4 py-2 text-gray-700">{formatDecimal(trip.totalCost)}</td>
-                    <td className="px-4 py-2 text-gray-700">{formatMargin(trip.marginPct)}</td>
-                    <td className="px-4 py-2 text-gray-700">{trip.status}</td>
-                  </tr>
-                </Link>
+                <tr key={trip.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-2 font-medium text-gray-900">
+                    <Link
+                      href={`/trips/${trip.id}`}
+                      className="inline-flex items-center gap-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+                    >
+                      <span>{trip.driver}</span>
+                      <span aria-hidden="true" className="text-xs text-gray-400">
+                        →
+                      </span>
+                      <span className="sr-only">View trip</span>
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2 text-gray-700">{trip.unit}</td>
+                  <td className="px-4 py-2 text-gray-700">{formatDecimal(trip.miles)}</td>
+                  <td className="px-4 py-2 text-gray-700">{formatDecimal(trip.revenue)}</td>
+                  <td className="px-4 py-2 text-gray-700">{formatDecimal(trip.totalCost)}</td>
+                  <td className="px-4 py-2 text-gray-700">{formatMargin(trip.marginPct)}</td>
+                  <td className="px-4 py-2 text-gray-700">{trip.status}</td>
+                  <td className="px-4 py-2 text-gray-700">
+                    <Link
+                      href={`/trips/${trip.id}`}
+                      className="text-sm font-medium text-blue-600 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    >
+                      Open
+                    </Link>
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
