@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import OcrDropBox, { type OcrResult } from "@/components/ocr-dropbox";
+import type { ParsedOrder } from "@/lib/parse-order";
 
 export default function NewOrderPage() {
   const r = useRouter();
@@ -17,6 +19,38 @@ export default function NewOrderPage() {
     delWindowEnd: "",
     notes: "",
   });
+
+  function applyParsed(result: OcrResult) {
+    if (result.error && !result.parsed && !result.text) {
+      alert(result.error || "Could not read image");
+      return;
+    }
+
+    const parsed = (result.parsed ?? {}) as ParsedOrder;
+    setForm(prev => {
+      const noteParts = prev.notes ? [prev.notes] : [];
+      if (parsed.notes) noteParts.push(parsed.notes);
+
+      const next = {
+        ...prev,
+        customer: parsed.customer ?? prev.customer,
+        origin: parsed.origin ?? prev.origin,
+        destination: parsed.destination ?? prev.destination,
+        requiredTruck: parsed.requiredTruck ?? prev.requiredTruck,
+        puWindowStart: mergeDate(prev.puWindowStart, parsed.puWindowStart, "Pickup window start", noteParts),
+        puWindowEnd: mergeDate(prev.puWindowEnd, parsed.puWindowEnd, "Pickup window end", noteParts),
+        delWindowStart: mergeDate(prev.delWindowStart, parsed.delWindowStart, "Delivery window start", noteParts),
+        delWindowEnd: mergeDate(prev.delWindowEnd, parsed.delWindowEnd, "Delivery window end", noteParts),
+        notes: noteParts.filter(Boolean).join(" | "),
+      };
+      return next;
+    });
+
+    if (typeof result.ocrConfidence === "number") {
+      // eslint-disable-next-line no-console
+      console.log("OCR confidence:", result.ocrConfidence);
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,9 +69,31 @@ export default function NewOrderPage() {
     setForm(prev => ({ ...prev, [k]: v }));
   }
 
+  function mergeDate(prev: string, raw: string | undefined, label: string, notes: string[]) {
+    if (!raw) return prev;
+    const normalized = toDateTimeLocal(raw);
+    if (normalized) return normalized;
+    notes.push(`${label}: ${raw}`);
+    return prev;
+  }
+
+  function toDateTimeLocal(raw?: string) {
+    if (!raw) return undefined;
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)) return raw;
+    const d = new Date(raw);
+    if (!Number.isNaN(d.getTime())) {
+      const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+      return local.toISOString().slice(0, 16);
+    }
+    return undefined;
+  }
+
   return (
     <main className="max-w-xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">New Order</h1>
+      <div className="mb-4">
+        <OcrDropBox onParsed={applyParsed} />
+      </div>
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block text-sm">Customer *</label>
