@@ -23,6 +23,10 @@ export function parseOrderFromText(raw: string): ParsedOrder {
   const origin = get("(?:origin|pickup\\s*addr(?:ess)?)");
   const destination = get("(?:destination|delivery\\s*addr(?:ess)?)");
   const requiredTruck = get("(?:truck\\s*type|equipment|req(?:uired)?\\s*truck)");
+  const puStartSingle = get("(?:pickup|pu)\\s*(?:window\\s*)?(?:start|open|from)");
+  const puEndSingle = get("(?:pickup|pu)\\s*(?:window\\s*)?(?:end|close|by)");
+  const delStartSingle = get("(?:delivery|del)\\s*(?:window\\s*)?(?:start|open|from)");
+  const delEndSingle = get("(?:delivery|del)\\s*(?:window\\s*)?(?:end|close|by)");
 
   // Time window heuristics (pickup/delivery)
   // Try formats like: "Pickup Window: 2025-10-22 09:00–11:00" or "PU: 10/22 09:00-11:00"
@@ -33,15 +37,34 @@ export function parseOrderFromText(raw: string): ParsedOrder {
   const puLine = lineAfter(text, /(pickup|pu)/i);
   const delLine = lineAfter(text, /(delivery|del)/i);
 
+  const puLineRange = parseDateRange(puLine);
+  const delLineRange = parseDateRange(delLine);
+
   const res: ParsedOrder = {
     customer,
     origin,
     destination,
     requiredTruck,
-    puWindowStart: pu?.start ?? parseDateRange(puLine)?.start ?? undefined,
-    puWindowEnd:   pu?.end   ?? parseDateRange(puLine)?.end   ?? undefined,
-    delWindowStart: del?.start ?? parseDateRange(delLine)?.start ?? undefined,
-    delWindowEnd:   del?.end   ?? parseDateRange(delLine)?.end   ?? undefined,
+    puWindowStart: firstDefined(
+      pu?.start,
+      puLineRange?.start,
+      toIsoOrRawMaybe(puStartSingle)
+    ),
+    puWindowEnd: firstDefined(
+      pu?.end,
+      puLineRange?.end,
+      toIsoOrRawMaybe(puEndSingle)
+    ),
+    delWindowStart: firstDefined(
+      del?.start,
+      delLineRange?.start,
+      toIsoOrRawMaybe(delStartSingle)
+    ),
+    delWindowEnd: firstDefined(
+      del?.end,
+      delLineRange?.end,
+      toIsoOrRawMaybe(delEndSingle)
+    ),
   };
 
   // Scoot leftover lines into notes if they look useful
@@ -98,6 +121,18 @@ function toIsoOrRaw(s: string) {
   if (!isNaN(d.getTime())) return d.toISOString();
   // Try MM/DD hh:mm pattern with today's/this year fallback is complex — keep raw if unsure
   return s;
+}
+
+function toIsoOrRawMaybe(s?: string | null) {
+  if (!s) return undefined;
+  return toIsoOrRaw(s);
+}
+
+function firstDefined<T>(...values: (T | undefined)[]) {
+  for (const value of values) {
+    if (value !== undefined) return value;
+  }
+  return undefined;
 }
 
 function collectNotes(text: string, res: ParsedOrder) {
