@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Opt = { id: string; name?: string; code?: string };
 
@@ -17,44 +17,133 @@ export default function TripForm({ orderId, drivers, units, types, zones }: Prop
   const r = useRouter();
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [resolved, setResolved] = useState<{ type: string | null; zone: string | null } | null>(null);
+  const [rateMatch, setRateMatch] = useState<{
+    type: string | null;
+    zone: string | null;
+    found: boolean;
+  } | null>(null);
 
   const [f, setF] = useState({
-    driverId: "", unitId: "",
-    miles: "", revenue: "",
-    type: "", zone: "",
-    fixedCPM: "", wageCPM: "", addOnsCPM: "", rollingCPM: "",
-    tripStart: "", tripEnd: "",
+    driverId: "",
+    unitId: "",
+    miles: "",
+    revenue: "",
+    type: "",
+    zone: "",
+    fixedCPM: "",
+    wageCPM: "",
+    addOnsCPM: "",
+    rollingCPM: "",
+    tripStart: "",
+    tripEnd: "",
+    rateId: "",
   });
 
-  function set<K extends keyof typeof f>(k: K, v: string) { setF(p => ({ ...p, [k]: v })); }
+  function set<K extends keyof typeof f>(k: K, v: string) {
+    setF((prev) => {
+      const next = { ...prev, [k]: v };
+      if (k === "driverId" || k === "unitId" || k === "type" || k === "zone") {
+        next.rateId = "";
+      }
+      return next;
+    });
+  }
+
+  const selectedDriverName = useMemo(
+    () => drivers.find((d) => d.id === f.driverId)?.name ?? "",
+    [drivers, f.driverId]
+  );
+  const selectedUnitCode = useMemo(
+    () => units.find((u) => u.id === f.unitId)?.code ?? "",
+    [units, f.unitId]
+  );
 
   useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+
     async function fetchRates() {
-      if (!f.type && !f.zone) return;
-      const q = new URLSearchParams({ ...(f.type ? { type: f.type } : {}), ...(f.zone ? { zone: f.zone } : {}) });
-      const res = await fetch(`/api/rates/lookup?${q.toString()}`);
-      const j = await res.json();
-      if (j.found) {
-        setResolved(j.resolved ?? null);
-        setF(p => ({
-          ...p,
-          fixedCPM: String(j.fixedCPM ?? ""),
-          wageCPM: String(j.wageCPM ?? ""),
-          addOnsCPM: String(j.addOnsCPM ?? ""),
-          rollingCPM: String(j.rollingCPM ?? ""),
-        }));
+      try {
+        const payload: Record<string, string> = { orderId };
+        if (selectedDriverName.trim()) payload.driver = selectedDriverName.trim();
+        if (selectedUnitCode.trim()) payload.unit = selectedUnitCode.trim();
+        if (f.type.trim()) payload.type = f.type.trim();
+        if (f.zone.trim()) payload.zone = f.zone.trim();
+
+        const res = await fetch("/api/rates/lookup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          if (!cancelled) {
+            setRateMatch(null);
+            setF((prev) => ({ ...prev, rateId: "" }));
+          }
+          return;
+        }
+
+        const data = await res.json();
+        if (cancelled) return;
+
+        const nextMatch = {
+          type: typeof data.type === "string" ? data.type : null,
+          zone: typeof data.zone === "string" ? data.zone : null,
+          found: Boolean(data.found),
+        } as const;
+        setRateMatch(
+          nextMatch.type || nextMatch.zone || nextMatch.found ? nextMatch : null
+        );
+
+        setF((prev) => {
+          const next = { ...prev };
+
+          if (!prev.type && typeof data.type === "string" && data.type) {
+            next.type = data.type;
+          }
+          if (!prev.zone && typeof data.zone === "string" && data.zone) {
+            next.zone = data.zone;
+          }
+
+          if (data.found) {
+            next.fixedCPM = data.fixedCPM != null ? String(data.fixedCPM) : "";
+            next.wageCPM = data.wageCPM != null ? String(data.wageCPM) : "";
+            next.addOnsCPM = data.addOnsCPM != null ? String(data.addOnsCPM) : "";
+            next.rollingCPM =
+              data.rollingCPM != null ? String(data.rollingCPM) : "";
+            next.rateId = typeof data.rateId === "string" ? data.rateId : "";
+          } else {
+            next.rateId = "";
+          }
+
+          return next;
+        });
+      } catch (error) {
+        if ((error as DOMException)?.name === "AbortError") return;
+        console.error("Failed to look up rate", error);
+        if (!cancelled) {
+          setRateMatch(null);
+          setF((prev) => ({ ...prev, rateId: "" }));
+        }
       }
     }
+
     fetchRates();
-  }, [f.type, f.zone]);
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [orderId, selectedDriverName, selectedUnitCode, f.type, f.zone]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true); setErr(null);
 
-    const driver = drivers.find(d => d.id === f.driverId)?.name ?? "";
-    const unit = units.find(u => u.id === f.unitId)?.code ?? "";
+    const driver = selectedDriverName;
+    const unit = selectedUnitCode;
 
     const res = await fetch("/api/trips", {
       method: "POST",
@@ -73,6 +162,7 @@ export default function TripForm({ orderId, drivers, units, types, zones }: Prop
         rollingCPM: f.rollingCPM ? Number(f.rollingCPM) : undefined,
         tripStart: f.tripStart || undefined,
         tripEnd: f.tripEnd || undefined,
+        rateId: f.rateId || undefined,
       }),
     });
 
@@ -147,9 +237,23 @@ export default function TripForm({ orderId, drivers, units, types, zones }: Prop
             </div>
           ))}
         </div>
-        {resolved && (
-          <p className="text-xs text-gray-600 mt-2">
-            Using rate: Type = {resolved.type ?? "(any)"} | Zone = {resolved.zone ?? "(any)"}
+        {rateMatch && (
+          <p
+            className={`text-xs mt-2 ${
+              rateMatch.found ? "text-gray-600" : "text-amber-600"
+            }`}
+          >
+            {rateMatch.found
+              ? `Using rate: Type = ${rateMatch.type ?? "(any)"} | Zone = ${
+                  rateMatch.zone ?? "(any)"
+                }`
+              : `No matching rate found${
+                  rateMatch.type || rateMatch.zone
+                    ? ` (suggested Type = ${rateMatch.type ?? "(any)"}, Zone = ${
+                        rateMatch.zone ?? "(any)"
+                      })`
+                    : ""
+                }`}
           </p>
         )}
       </details>
