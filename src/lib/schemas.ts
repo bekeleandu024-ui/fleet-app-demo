@@ -99,6 +99,7 @@ export const TripCreate = z
     tripEnd: optionalDateTime("tripEnd"),
     rateId: optionalTrimmedString(),
   })
+  .strip()
   .superRefine((data, ctx) => {
     if (data.tripStart && data.tripEnd) {
       if (data.tripEnd.getTime() < data.tripStart.getTime()) {
@@ -109,8 +110,7 @@ export const TripCreate = z
         });
       }
     }
-  })
-  .strip();
+  });
 
 export const TripStatus = z.enum([
   "Created",
