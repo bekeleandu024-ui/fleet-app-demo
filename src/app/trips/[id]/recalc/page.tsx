@@ -118,8 +118,8 @@ export default async function TripRecalcPage({ params }: { params: { id: string 
       </div>
 
       <div className="overflow-x-auto border rounded">
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-50 text-gray-600">
+        <table className="min-w-full text-sm divide-y divide-gray-200">
+          <thead className="bg-slate-900 text-white">
             <tr>
               <th className="px-4 py-2 text-left font-semibold">Metric</th>
               <th className="px-4 py-2 text-right font-semibold">Before</th>
@@ -127,7 +127,7 @@ export default async function TripRecalcPage({ params }: { params: { id: string 
               <th className="px-4 py-2 text-right font-semibold">Δ</th>
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody className="divide-y divide-gray-200">
             {metrics.map(({ key, label, isPercent }) => {
               const beforeValue = before[key];
               const afterValue = after[key];
@@ -136,7 +136,7 @@ export default async function TripRecalcPage({ params }: { params: { id: string 
               const tone = diffTone(afterValue, beforeValue);
 
               return (
-                <tr key={key}>
+                <tr key={key} className="transition-colors hover:bg-slate-100">
                   <td className="px-4 py-2 text-gray-800">{label}</td>
                   <td className="px-4 py-2 text-right text-gray-600">{formatter(beforeValue)}</td>
                   <td className="px-4 py-2 text-right font-medium">{formatter(afterValue)}</td>

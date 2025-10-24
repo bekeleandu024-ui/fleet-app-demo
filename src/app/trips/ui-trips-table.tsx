@@ -51,8 +51,8 @@ export default function TripsTable({ trips }: TripsTableProps) {
 
   return (
     <div className="overflow-x-auto border rounded-lg">
-      <table className="min-w-full divide-y">
-        <thead className="bg-gray-50 text-sm text-gray-700">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-slate-900 text-sm text-white">
           <tr>
             <th className="px-4 py-2 text-left font-semibold">Driver</th>
             <th className="px-4 py-2 text-left font-semibold">Unit</th>
@@ -64,7 +64,7 @@ export default function TripsTable({ trips }: TripsTableProps) {
             <th className="px-4 py-2 text-left font-semibold">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y text-sm">
+        <tbody className="divide-y divide-gray-200 text-sm">
           {trips.map((trip) => (
             <tr
               key={trip.id}
@@ -73,7 +73,7 @@ export default function TripsTable({ trips }: TripsTableProps) {
               aria-label={`Edit trip ${trip.driver}`}
               onClick={() => goToEdit(trip.id)}
               onKeyDown={(event) => handleKeyDown(event, trip.id)}
-              className="cursor-pointer hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-black"
+              className="cursor-pointer transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-600"
             >
               <td className="px-4 py-2 font-medium text-gray-900">{trip.driver}</td>
               <td className="px-4 py-2 text-gray-700">{trip.unit}</td>
