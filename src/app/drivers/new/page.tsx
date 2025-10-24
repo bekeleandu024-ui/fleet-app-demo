@@ -1,47 +1,51 @@
-"use client";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import DriverForm from "../ui-driver-form";
 
-export default function NewDriver() {
-  const r = useRouter();
-  const [f, setF] = useState({ name: "", homeBase: "", active: true });
-  const [err, setErr] = useState<string | null>(null);
-  const input = "w-full border rounded p-2";
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setErr(null);
-    const res = await fetch("/api/drivers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(f),
-    });
-    if (res.ok) r.push("/drivers");
-    else {
-      const j = await res.json().catch(() => ({}));
-      setErr(j?.issues?.fieldErrors?.name?.[0] ?? j?.error ?? "Failed");
-    }
-  }
-
+export default function NewDriverPage() {
   return (
-    <main className="max-w-xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-3">New Driver</h1>
-      <form onSubmit={onSubmit} className="space-y-4">
-        {err && <div className="p-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded">{err}</div>}
-        <div>
-          <label className="block text-sm">Name *</label>
-          <input className={input} value={f.name} onChange={e=>setF(p=>({...p, name: e.target.value}))} />
+    <main className="mx-auto max-w-5xl space-y-8 p-6">
+      <header className="space-y-2">
+        <p className="text-sm uppercase tracking-wide text-gray-500">Driver onboarding</p>
+        <h1 className="text-3xl font-semibold">Add a new driver</h1>
+        <p className="text-sm text-gray-600">
+          Capture the core details your dispatch, safety, and payroll teams need so this driver
+          is ready for assignment as soon as their paperwork clears.
+        </p>
+      </header>
+
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,280px)_1fr]">
+        <aside className="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-5 text-sm">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+              Operations checklist
+            </h2>
+            <p className="mt-1 text-gray-600">
+              Make sure these items are on file before dispatching the driver.
+            </p>
+          </div>
+          <ul className="space-y-2 text-gray-700">
+            <li className="flex items-start gap-2">
+              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+              <span>Valid CDL and any required endorsements.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+              <span>Current medical certificate and drug test status.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+              <span>Emergency contact and home terminal information.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+              <span>Payroll setup (rate type, deductions, direct deposit).</span>
+            </li>
+          </ul>
+        </aside>
+
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <DriverForm mode="create" />
         </div>
-        <div>
-          <label className="block text-sm">Home Base</label>
-          <input className={input} value={f.homeBase} onChange={e=>setF(p=>({...p, homeBase: e.target.value}))} />
-        </div>
-        <label className="inline-flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={f.active} onChange={e=>setF(p=>({...p, active: e.target.checked}))} />
-          Active
-        </label>
-        <button className="px-4 py-2 rounded bg-black text-white">Create</button>
-      </form>
+      </section>
     </main>
   );
 }

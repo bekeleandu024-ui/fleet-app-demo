@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 type DriverFormValues = {
   name: string;
   homeBase: string;
+  license: string;
   active: boolean;
 };
 
@@ -15,6 +16,7 @@ type DriverFormProps = {
   initialValues?: {
     name: string;
     homeBase?: string | null;
+    license?: string | null;
     active: boolean;
   };
 };
@@ -31,6 +33,7 @@ export default function DriverForm({ mode, driverId, initialValues }: DriverForm
   const [values, setValues] = useState<DriverFormValues>({
     name: initialValues?.name ?? "",
     homeBase: initialValues?.homeBase ?? "",
+    license: initialValues?.license ?? "",
     active: initialValues?.active ?? true,
   });
   const [loading, setLoading] = useState(false);
@@ -94,6 +97,7 @@ export default function DriverForm({ mode, driverId, initialValues }: DriverForm
     const payload = {
       name: values.name,
       homeBase: values.homeBase.trim() ? values.homeBase.trim() : undefined,
+      license: values.license.trim() ? values.license.trim() : undefined,
       active: values.active,
     };
 
@@ -146,6 +150,22 @@ export default function DriverForm({ mode, driverId, initialValues }: DriverForm
         />
         {fieldErrors.homeBase && (
           <p className="text-sm text-red-600">{fieldErrors.homeBase}</p>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium">License number</label>
+        <input
+          className={inputClass}
+          value={values.license}
+          onChange={(event) => handleChange("license", event.target.value)}
+          placeholder="e.g. ON-1234-5678"
+        />
+        <p className="text-xs text-gray-500">
+          Capture the current CDL/driver's license so dispatch can verify compliance quickly.
+        </p>
+        {fieldErrors.license && (
+          <p className="text-sm text-red-600">{fieldErrors.license}</p>
         )}
       </div>
 

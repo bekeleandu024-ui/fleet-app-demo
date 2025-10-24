@@ -24,6 +24,7 @@ export default async function EditDriverPage({ params }: PageProps) {
         initialValues={{
           name: driver.name,
           homeBase: driver.homeBase,
+          license: driver.license,
           active: driver.active,
         }}
       />
