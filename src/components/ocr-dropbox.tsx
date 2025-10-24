@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { DragEvent, ReactNode } from "react";
 
 import { parseOcrToOrder } from "@/lib/ocr";
 import type { ParsedOrder } from "@/lib/ocr";
@@ -30,7 +30,9 @@ const toneClass = {
 
 async function loadTesseract() {
   if (!tesseractPromise) {
-    tesseractPromise = import("tesseract.js").then(mod => mod.default ?? (mod as unknown as TesseractModule));
+    tesseractPromise = import("tesseract.js").then(
+      (mod) => mod.default ?? (mod as unknown as TesseractModule)
+    );
   }
   return tesseractPromise;
 }
@@ -50,13 +52,69 @@ export default function OcrDropBox({
   const boxRef = useRef<HTMLDivElement>(null);
   const previewUrl = useRef<string | null>(null);
 
-  // Paste handler
+  const upload = useCallback(
+    async (file: File) => {
+      if (busy) return;
+      setBusy(true);
+      setStatus("Loading OCR engine…");
+      setStatusTone("info");
+      setProgress(0);
+
+      const url = URL.createObjectURL(file);
+      if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+      previewUrl.current = url;
+      setPreview(url);
+
+      try {
+        const tesseract = await loadTesseract();
+        const { data } = await tesseract.recognize(file, "eng", {
+          logger: (message: LoggerMessage) => {
+            if (!message?.status) return;
+            setStatusTone("info");
+            if (message.status === "recognizing text") {
+              const pct = Math.round((message.progress ?? 0) * 100);
+              setProgress(message.progress ?? 0);
+              setStatus(`Reading text… ${pct}%`);
+            } else if (message.status === "initializing api") {
+              setStatus("Preparing reader…");
+            } else if (message.status === "loading language traineddata") {
+              setStatus("Loading language data…");
+            } else if (message.status === "loading tesseract core") {
+              setStatus("Loading OCR engine…");
+            } else {
+              setStatus(
+                `${message.status.charAt(0).toUpperCase()}${message.status.slice(1)}…`
+              );
+            }
+          },
+        });
+
+        const text = data.text ?? "";
+        const parsed = parseOcrToOrder(text);
+        onParsed({ ok: true, ocrConfidence: data.confidence, text, parsed });
+        setProgress(1);
+        setStatus("Text captured from image.");
+        setStatusTone("success");
+      } catch (e: any) {
+        const message = e?.message || "OCR failed";
+        onParsed({ ok: false, error: message });
+        setStatus(message);
+        setStatusTone("error");
+        setProgress(0);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, onParsed]
+  );
+
+  // Allow pasting screenshots directly into the drop box
   useEffect(() => {
     function onPaste(e: ClipboardEvent) {
       if (!boxRef.current) return;
       const files = e.clipboardData?.files;
       if (!files || files.length === 0) return;
-      const img = Array.from(files).find(f => f.type.startsWith("image/"));
+      const img = Array.from(files).find((f) => f.type.startsWith("image/"));
       if (img) {
         e.preventDefault();
         upload(img);
@@ -64,74 +122,33 @@ export default function OcrDropBox({
     }
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, []);
+  }, [upload]);
 
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault();
-    if (busy) return;
-    const f = e.dataTransfer.files?.[0];
-    if (f && f.type.startsWith("image/")) upload(f);
-  }
+  const onDrop = useCallback(
+    (e: DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      if (busy) return;
+      const f = e.dataTransfer.files?.[0];
+      if (f && f.type.startsWith("image/")) upload(f);
+    },
+    [upload, busy]
+  );
 
-  async function upload(file: File) {
-    if (busy) return;
-    setBusy(true);
-    setStatus("Loading OCR engine…");
-    setStatusTone("info");
-    setProgress(0);
-    const url = URL.createObjectURL(file);
-    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
-    previewUrl.current = url;
-    setPreview(url);
-    try {
-      const tesseract = await loadTesseract();
-      const { data } = await tesseract.recognize(file, "eng", {
-        logger: (message: LoggerMessage) => {
-          if (!message?.status) return;
-          setStatusTone("info");
-          if (message.status === "recognizing text") {
-            const pct = Math.round((message.progress ?? 0) * 100);
-            setProgress(message.progress ?? 0);
-            setStatus(`Reading text… ${pct}%`);
-          } else if (message.status === "initializing api") {
-            setStatus("Preparing reader…");
-          } else if (message.status === "loading language traineddata") {
-            setStatus("Loading language data…");
-          } else if (message.status === "loading tesseract core") {
-            setStatus("Loading OCR engine…");
-          } else {
-            setStatus(`${message.status.charAt(0).toUpperCase()}${message.status.slice(1)}…`);
-          }
-        },
-      });
-      const text = data.text ?? "";
-      const parsed = parseOcrToOrder(text);
-      onParsed({ ok: true, ocrConfidence: data.confidence, text, parsed });
-      setProgress(1);
-      setStatus("Text captured from image.");
-      setStatusTone("success");
-    } catch (e: any) {
-      const message = e?.message || "OCR failed";
-      onParsed({ ok: false, error: message });
-      setStatus(message);
-      setStatusTone("error");
-      setProgress(0);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  useEffect(() => () => {
-    if (previewUrl.current) {
-      URL.revokeObjectURL(previewUrl.current);
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (previewUrl.current) {
+        URL.revokeObjectURL(previewUrl.current);
+      }
+    },
+    []
+  );
 
   const base = "border-2 border-dashed rounded p-4 text-sm text-gray-600";
+
   return (
     <div
       ref={boxRef}
-      onDragOver={e => e.preventDefault()}
+      onDragOver={(e) => e.preventDefault()}
       onDrop={onDrop}
       className={base}
       aria-busy={busy}
@@ -150,7 +167,10 @@ export default function OcrDropBox({
             {actions}
             {busy && (
               <div className="flex items-center gap-2 text-gray-500" aria-live="polite">
-                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-gray-400" aria-hidden />
+                <span
+                  className="inline-block h-2 w-2 animate-pulse rounded-full bg-gray-400"
+                  aria-hidden
+                />
                 <span>{status ?? "Reading…"}</span>
               </div>
             )}
@@ -165,7 +185,11 @@ export default function OcrDropBox({
             <div className="mt-2 h-1 w-full overflow-hidden rounded bg-gray-200">
               <div
                 className="h-full rounded bg-blue-500 transition-all duration-200"
-                style={{ width: `${Math.min(100, Math.max(0, Math.round(progress * 100))) || 0}%` }}
+                style={{
+                  width: `${
+                    Math.min(100, Math.max(0, Math.round(progress * 100))) || 0
+                  }%`,
+                }}
               />
             </div>
           )}
