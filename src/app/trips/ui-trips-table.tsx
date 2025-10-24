@@ -50,21 +50,21 @@ export default function TripsTable({ trips }: TripsTableProps) {
   };
 
   return (
-    <div className="overflow-x-auto border rounded-lg">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-slate-900 text-sm text-white">
+    <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/60">
+      <table className="min-w-full divide-y divide-slate-800 text-sm text-slate-200">
+        <thead className="bg-slate-950/80 text-xs uppercase tracking-wide text-slate-300">
           <tr>
-            <th className="px-4 py-2 text-left font-semibold">Driver</th>
-            <th className="px-4 py-2 text-left font-semibold">Unit</th>
-            <th className="px-4 py-2 text-left font-semibold">Miles</th>
-            <th className="px-4 py-2 text-left font-semibold">Revenue</th>
-            <th className="px-4 py-2 text-left font-semibold">Total Cost</th>
-            <th className="px-4 py-2 text-left font-semibold">Margin %</th>
-            <th className="px-4 py-2 text-left font-semibold">Status</th>
-            <th className="px-4 py-2 text-left font-semibold">Actions</th>
+            <th className="px-4 py-3 text-left font-semibold">Driver</th>
+            <th className="px-4 py-3 text-left font-semibold">Unit</th>
+            <th className="px-4 py-3 text-left font-semibold">Miles</th>
+            <th className="px-4 py-3 text-left font-semibold">Revenue</th>
+            <th className="px-4 py-3 text-left font-semibold">Total Cost</th>
+            <th className="px-4 py-3 text-left font-semibold">Margin %</th>
+            <th className="px-4 py-3 text-left font-semibold">Status</th>
+            <th className="px-4 py-3 text-left font-semibold">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200 text-sm">
+        <tbody className="divide-y divide-slate-800">
           {trips.map((trip) => (
             <tr
               key={trip.id}
@@ -73,21 +73,35 @@ export default function TripsTable({ trips }: TripsTableProps) {
               aria-label={`Edit trip ${trip.driver}`}
               onClick={() => goToEdit(trip.id)}
               onKeyDown={(event) => handleKeyDown(event, trip.id)}
-              className="cursor-pointer transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-600"
+              className="group cursor-pointer transition-colors duration-200 hover:bg-[#1e293b] focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
             >
-              <td className="px-4 py-2 font-medium text-gray-900">{trip.driver}</td>
-              <td className="px-4 py-2 text-gray-700">{trip.unit}</td>
-              <td className="px-4 py-2 text-gray-700">{formatDecimal(trip.miles)}</td>
-              <td className="px-4 py-2 text-gray-700">{formatDecimal(trip.revenue)}</td>
-              <td className="px-4 py-2 text-gray-700">{formatDecimal(trip.totalCost)}</td>
-              <td className="px-4 py-2 text-gray-700">{formatMargin(trip.marginPct)}</td>
-              <td className="px-4 py-2 text-gray-700">{trip.status}</td>
-              <td className="px-4 py-2 text-gray-700">
+              <td className="px-4 py-3 font-medium text-slate-100 transition-colors duration-200 group-hover:text-slate-100">
+                {trip.driver}
+              </td>
+              <td className="px-4 py-3 text-slate-300 transition-colors duration-200 group-hover:text-slate-200">
+                {trip.unit}
+              </td>
+              <td className="px-4 py-3 text-slate-300 transition-colors duration-200 group-hover:text-slate-200">
+                {formatDecimal(trip.miles)}
+              </td>
+              <td className="px-4 py-3 text-slate-300 transition-colors duration-200 group-hover:text-slate-200">
+                {formatDecimal(trip.revenue)}
+              </td>
+              <td className="px-4 py-3 text-slate-300 transition-colors duration-200 group-hover:text-slate-200">
+                {formatDecimal(trip.totalCost)}
+              </td>
+              <td className="px-4 py-3 text-slate-300 transition-colors duration-200 group-hover:text-slate-200">
+                {formatMargin(trip.marginPct)}
+              </td>
+              <td className="px-4 py-3 text-slate-300 transition-colors duration-200 group-hover:text-slate-200">
+                {trip.status}
+              </td>
+              <td className="px-4 py-3 text-slate-300">
                 <Link
                   href={`/trips/${trip.id}`}
                   onClick={(event) => event.stopPropagation()}
                   onKeyDown={(event) => event.stopPropagation()}
-                  className="text-sm font-medium text-blue-600 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                  className="text-sm font-medium text-sky-400 transition-colors duration-200 hover:text-sky-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 group-hover:text-sky-300"
                 >
                   Open
                 </Link>

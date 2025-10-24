@@ -35,10 +35,12 @@ const links = [
 
 export default function HomePage() {
   return (
-    <main className="mx-auto max-w-3xl space-y-8 p-6">
+    <main className="mx-auto max-w-3xl space-y-8 p-6 text-slate-100">
       <header className="space-y-2">
-        <h1 className="text-3xl font-bold">Fleet operations demo</h1>
-        <p className="text-sm text-gray-600">
+        <h1 className="text-3xl font-bold text-slate-100">
+          Fleet operations demo
+        </h1>
+        <p className="text-sm text-slate-300">
           Quick shortcuts to the core workflows in the sample app.
         </p>
       </header>
@@ -48,10 +50,14 @@ export default function HomePage() {
           <Link
             key={link.href}
             href={link.href}
-            className="block rounded border border-gray-200 p-4 transition hover:border-black hover:bg-gray-50"
+            className="group block rounded-lg border border-slate-800 bg-slate-900/60 p-4 transition-colors duration-200 hover:border-slate-600 hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
           >
-            <h2 className="text-lg font-semibold">{link.title}</h2>
-            <p className="mt-2 text-sm text-gray-600">{link.description}</p>
+            <h2 className="text-lg font-semibold text-slate-100 transition-colors duration-200 group-hover:text-sky-300">
+              {link.title}
+            </h2>
+            <p className="mt-2 text-sm text-slate-300 transition-colors duration-200 group-hover:text-slate-200">
+              {link.description}
+            </p>
           </Link>
         ))}
       </section>
