@@ -2,6 +2,8 @@ import prisma from "@/server/prisma";
 import Link from "next/link";
 import RateSettingsTable from "./rate-settings-table";
 
+export const runtime = "nodejs";
+
 export default async function RatesPage() {
   const [rates, settings] = await Promise.all([
     prisma.rate.findMany({
