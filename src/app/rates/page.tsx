@@ -14,6 +14,12 @@ export default async function RatesPage() {
     }),
   ]);
 
+  const rateSettingsForClient = settings.map((item) => ({
+    ...item,
+    value: Number(item.value),
+    updatedAt: item.updatedAt.toISOString(),
+  }));
+
   return (
     <main className="max-w-3xl mx-auto p-6">
       <div className="flex items-center justify-between mb-4">
@@ -73,14 +79,11 @@ export default async function RatesPage() {
             + Add rate entry
           </Link>
         </div>
-        {settings.length === 0 ? (
+        {rateSettingsForClient.length === 0 ? (
           <p className="text-gray-600">No rate table entries yet. Use the form above to add them.</p>
         ) : (
           <RateSettingsTable
-            items={settings.map((item) => ({
-              ...item,
-              value: Number(item.value),
-            }))}
+            items={rateSettingsForClient}
           />
         )}
       </section>

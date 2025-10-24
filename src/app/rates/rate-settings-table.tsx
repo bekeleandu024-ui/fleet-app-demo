@@ -43,6 +43,11 @@ export default function RateSettingsTable({ items }: Props) {
     return max ? new Date(max) : null;
   }, [rows]);
 
+  const formattedLastUpdated = useMemo(
+    () => (lastUpdated ? lastUpdated.toUTCString() : null),
+    [lastUpdated]
+  );
+
   function startEditing(id: string) {
     setRows((prev) =>
       prev.map((row) =>
@@ -253,9 +258,9 @@ export default function RateSettingsTable({ items }: Props) {
             ))}
         </tbody>
       </table>
-      {lastUpdated && (
+      {formattedLastUpdated && (
         <div className="border-t px-4 py-2 text-right text-xs text-gray-500">
-          Last updated {lastUpdated.toLocaleString()}
+          Last updated {formattedLastUpdated}
         </div>
       )}
     </div>
