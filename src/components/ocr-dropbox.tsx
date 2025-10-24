@@ -1,15 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { DragEvent } from "react";
+import type { DragEvent, ReactNode } from "react";
 
-import { parseOrderFromText } from "@/lib/parse-order";
+import { parseOcrToOrder } from "@/lib/ocr";
+import type { ParsedOrder } from "@/lib/ocr";
 
 export type OcrResult = {
   ok?: boolean;
   ocrConfidence?: number;
   text?: string;
-  parsed?: unknown;
+  parsed?: ParsedOrder;
   error?: string;
 };
 
@@ -29,15 +30,19 @@ const toneClass = {
 
 async function loadTesseract() {
   if (!tesseractPromise) {
-    tesseractPromise = import("tesseract.js").then(mod => mod.default ?? (mod as unknown as TesseractModule));
+    tesseractPromise = import("tesseract.js").then(
+      (mod) => mod.default ?? (mod as unknown as TesseractModule)
+    );
   }
   return tesseractPromise;
 }
 
 export default function OcrDropBox({
   onParsed,
+  actions,
 }: {
   onParsed: (r: OcrResult) => void;
+  actions?: ReactNode;
 }) {
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -54,10 +59,12 @@ export default function OcrDropBox({
       setStatus("Loading OCR engine…");
       setStatusTone("info");
       setProgress(0);
+
       const url = URL.createObjectURL(file);
       if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
       previewUrl.current = url;
       setPreview(url);
+
       try {
         const tesseract = await loadTesseract();
         const { data } = await tesseract.recognize(file, "eng", {
@@ -75,12 +82,15 @@ export default function OcrDropBox({
             } else if (message.status === "loading tesseract core") {
               setStatus("Loading OCR engine…");
             } else {
-              setStatus(`${message.status.charAt(0).toUpperCase()}${message.status.slice(1)}…`);
+              setStatus(
+                `${message.status.charAt(0).toUpperCase()}${message.status.slice(1)}…`
+              );
             }
           },
         });
+
         const text = data.text ?? "";
-        const parsed = parseOrderFromText(text);
+        const parsed = parseOcrToOrder(text);
         onParsed({ ok: true, ocrConfidence: data.confidence, text, parsed });
         setProgress(1);
         setStatus("Text captured from image.");
@@ -95,16 +105,16 @@ export default function OcrDropBox({
         setBusy(false);
       }
     },
-    [busy, onParsed],
+    [busy, onParsed]
   );
 
-  // Paste handler
+  // Allow pasting screenshots directly into the drop box
   useEffect(() => {
     function onPaste(e: ClipboardEvent) {
       if (!boxRef.current) return;
       const files = e.clipboardData?.files;
       if (!files || files.length === 0) return;
-      const img = Array.from(files).find(f => f.type.startsWith("image/"));
+      const img = Array.from(files).find((f) => f.type.startsWith("image/"));
       if (img) {
         e.preventDefault();
         upload(img);
@@ -117,29 +127,34 @@ export default function OcrDropBox({
   const onDrop = useCallback(
     (e: DragEvent<HTMLDivElement>) => {
       e.preventDefault();
+      if (busy) return;
       const f = e.dataTransfer.files?.[0];
       if (f && f.type.startsWith("image/")) upload(f);
     },
-    [upload],
+    [upload, busy]
   );
 
-  useEffect(() => () => {
-    if (previewUrl.current) {
-      URL.revokeObjectURL(previewUrl.current);
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (previewUrl.current) {
+        URL.revokeObjectURL(previewUrl.current);
+      }
+    },
+    []
+  );
 
   const base = "border-2 border-dashed rounded p-4 text-sm text-gray-600";
+
   return (
     <div
       ref={boxRef}
-      onDragOver={e => e.preventDefault()}
+      onDragOver={(e) => e.preventDefault()}
       onDrop={onDrop}
       className={base}
       aria-busy={busy}
       role="region"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <div className="font-medium text-gray-800">Paste or drop an order screenshot</div>
           <div>
@@ -147,10 +162,18 @@ export default function OcrDropBox({
             <br />• or drag an image file onto this box
           </div>
         </div>
-        {busy && (
-          <div className="flex items-center gap-2 text-sm text-gray-500" aria-live="polite">
-            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-gray-400" aria-hidden />
-            <span>{status ?? "Reading…"}</span>
+        {(actions || busy) && (
+          <div className="flex items-center gap-2 text-sm">
+            {actions}
+            {busy && (
+              <div className="flex items-center gap-2 text-gray-500" aria-live="polite">
+                <span
+                  className="inline-block h-2 w-2 animate-pulse rounded-full bg-gray-400"
+                  aria-hidden
+                />
+                <span>{status ?? "Reading…"}</span>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -162,7 +185,11 @@ export default function OcrDropBox({
             <div className="mt-2 h-1 w-full overflow-hidden rounded bg-gray-200">
               <div
                 className="h-full rounded bg-blue-500 transition-all duration-200"
-                style={{ width: `${Math.min(100, Math.max(0, Math.round(progress * 100))) || 0}%` }}
+                style={{
+                  width: `${
+                    Math.min(100, Math.max(0, Math.round(progress * 100))) || 0
+                  }%`,
+                }}
               />
             </div>
           )}

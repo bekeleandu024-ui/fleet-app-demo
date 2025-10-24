@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 import { NextResponse } from "next/server";
 import Tesseract from "tesseract.js";
-import { parseOrderFromText } from "@/lib/parse-order";
+import { parseOcrToOrder } from "@/lib/ocr";
 
 export const runtime = "nodejs";
 
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
 
     const { data } = await Tesseract.recognize(buf, "eng");
     const text = data.text || "";
-    const parsed = parseOrderFromText(text);
+    const parsed = parseOcrToOrder(text);
 
     return NextResponse.json({
       ok: true,
