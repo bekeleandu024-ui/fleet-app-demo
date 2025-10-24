@@ -89,30 +89,30 @@ function formatStatus(status: FleetTruckStatus) {
 function badgeTone(status: FleetTruckStatus) {
   switch (status) {
     case "available":
-      return "border-emerald-200 bg-emerald-100 text-emerald-700";
+      return "border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-200";
     case "assigned":
-      return "border-amber-200 bg-amber-100 text-amber-700";
+      return "border-amber-200 bg-amber-100 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-200";
     case "in-transit":
-      return "border-sky-200 bg-sky-100 text-sky-700";
+      return "border-sky-200 bg-sky-100 text-sky-700 dark:border-sky-500/40 dark:bg-sky-500/15 dark:text-sky-200";
     case "inactive":
-      return "border-gray-200 bg-gray-100 text-gray-600";
+      return "border-gray-200 bg-gray-100 text-gray-600 dark:border-slate-600/60 dark:bg-slate-800/60 dark:text-slate-200";
     default:
-      return "border-gray-200 bg-gray-100 text-gray-600";
+      return "border-gray-200 bg-gray-100 text-gray-600 dark:border-slate-600/60 dark:bg-slate-800/60 dark:text-slate-200";
   }
 }
 
 function listTone(status: FleetTruckStatus) {
   switch (status) {
     case "available":
-      return "text-emerald-600";
+      return "text-emerald-600 dark:text-emerald-300";
     case "assigned":
-      return "text-amber-600";
+      return "text-amber-600 dark:text-amber-300";
     case "in-transit":
-      return "text-sky-600";
+      return "text-sky-600 dark:text-sky-300";
     case "inactive":
-      return "text-gray-500";
+      return "text-gray-500 dark:text-slate-300";
     default:
-      return "text-gray-600";
+      return "text-gray-600 dark:text-slate-200";
   }
 }
 
@@ -255,7 +255,7 @@ function MapLegend({ counts }: { counts: LegendCounts }) {
 
   return (
     <div className="pointer-events-none absolute left-4 top-4 flex flex-col gap-3 text-xs">
-      <div className="rounded-2xl bg-white/90 p-3 shadow-lg backdrop-blur">
+      <div className="rounded-2xl border border-gray-200 bg-white/90 p-3 shadow-lg backdrop-blur dark:border-slate-700/60 dark:bg-slate-900/70">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
           Status legend
         </p>
@@ -553,7 +553,7 @@ export default function FleetTrucksMap({ fleet }: FleetTrucksMapProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
       <section className="space-y-4">
-        <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white/60 p-4 shadow-sm">
+        <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white/70 p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/50 dark:shadow-none">
           <div className="space-y-1">
             <h2 className="text-lg font-semibold text-gray-900">Fleet map</h2>
             <p className="text-xs text-gray-500">
@@ -593,8 +593,8 @@ export default function FleetTrucksMap({ fleet }: FleetTrucksMapProps) {
                   disabled={cyclingDisabled}
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${
                     cyclingDisabled
-                      ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
-                      : "border-gray-300 bg-white text-gray-700 hover:border-emerald-300 hover:text-emerald-600"
+                      ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500"
+                      : "border-gray-300 bg-white text-gray-700 hover:border-emerald-300 hover:text-emerald-600 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:hover:border-emerald-400 dark:hover:text-emerald-300"
                   }`}
                 >
                   Previous
@@ -605,8 +605,8 @@ export default function FleetTrucksMap({ fleet }: FleetTrucksMapProps) {
                   disabled={cyclingDisabled}
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${
                     cyclingDisabled
-                      ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
-                      : "border-emerald-300 bg-emerald-50 text-emerald-700 hover:border-emerald-400 hover:bg-emerald-100"
+                      ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500"
+                      : "border-emerald-300 bg-emerald-50 text-emerald-700 hover:border-emerald-400 hover:bg-emerald-100 dark:border-emerald-500/50 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:border-emerald-400/80 dark:hover:bg-emerald-500/15"
                   }`}
                 >
                   Next
@@ -616,12 +616,12 @@ export default function FleetTrucksMap({ fleet }: FleetTrucksMapProps) {
           </div>
         </header>
 
-        <div className="relative h-[440px] overflow-hidden rounded-2xl border border-gray-200 bg-slate-100 shadow-inner">
+        <div className="relative h-[440px] overflow-hidden rounded-2xl border border-gray-200 bg-slate-100 shadow-inner dark:border-slate-700/70 dark:bg-slate-900/50 dark:shadow-none">
           <div ref={mapContainerRef} className="fleet-map-container h-full w-full" />
 
           {!mapReady && !mapError && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm text-gray-500">
-              <span className="animate-pulse rounded-full border border-gray-300 px-3 py-1 text-xs uppercase tracking-wide text-gray-400">
+              <span className="animate-pulse rounded-full border border-gray-300 px-3 py-1 text-xs uppercase tracking-wide text-gray-400 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
                 Loading live map…
               </span>
               <span>Fetching basemap tiles and truck markers.</span>
@@ -629,13 +629,13 @@ export default function FleetTrucksMap({ fleet }: FleetTrucksMapProps) {
           )}
 
           {mapError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/85 p-6 text-center text-sm text-amber-700">
+            <div className="absolute inset-0 flex items-center justify-center bg-white/85 p-6 text-center text-sm text-amber-700 dark:bg-slate-900/80 dark:text-amber-300">
               {mapError}
             </div>
           )}
 
           {mapReady && !mapError && totalMarkers === 0 && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white/75 p-6 text-center text-sm text-gray-500">
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white/75 p-6 text-center text-sm text-gray-500 dark:bg-slate-900/70 dark:text-slate-300">
               No active units to plot yet. Add units to the fleet to start monitoring live positions.
             </div>
           )}
@@ -644,7 +644,7 @@ export default function FleetTrucksMap({ fleet }: FleetTrucksMapProps) {
         </div>
       </section>
 
-      <aside className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <aside className="space-y-4 rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/60 dark:shadow-none">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-gray-900">Truck details</h3>
           {totalMarkers > 1 && (
@@ -655,8 +655,8 @@ export default function FleetTrucksMap({ fleet }: FleetTrucksMapProps) {
                 disabled={cyclingDisabled}
                 className={`rounded-full border px-2.5 py-1 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${
                   cyclingDisabled
-                    ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
-                    : "border-gray-300 bg-white text-gray-700 hover:border-emerald-300 hover:text-emerald-600"
+                    ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500"
+                    : "border-gray-300 bg-white text-gray-700 hover:border-emerald-300 hover:text-emerald-600 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:hover:border-emerald-400 dark:hover:text-emerald-300"
                 }`}
               >
                 Prev
@@ -667,8 +667,8 @@ export default function FleetTrucksMap({ fleet }: FleetTrucksMapProps) {
                 disabled={cyclingDisabled}
                 className={`rounded-full border px-2.5 py-1 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${
                   cyclingDisabled
-                    ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
-                    : "border-emerald-300 bg-emerald-50 text-emerald-700 hover:border-emerald-400 hover:bg-emerald-100"
+                    ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500"
+                    : "border-emerald-300 bg-emerald-50 text-emerald-700 hover:border-emerald-400 hover:bg-emerald-100 dark:border-emerald-500/50 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:border-emerald-400/80 dark:hover:bg-emerald-500/15"
                 }`}
               >
                 Next
@@ -709,7 +709,7 @@ export default function FleetTrucksMap({ fleet }: FleetTrucksMapProps) {
             </dl>
 
             <div className="grid gap-3 text-sm">
-              <div className="rounded-xl bg-gray-50/80 p-3">
+              <div className="rounded-xl bg-gray-50/80 p-3 dark:bg-slate-800/60">
                 <h4 className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Location</h4>
                 <div className="mt-2 space-y-1">
                   <p className="font-medium text-gray-900">
@@ -723,7 +723,7 @@ export default function FleetTrucksMap({ fleet }: FleetTrucksMapProps) {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-inner">
+              <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-inner dark:border-slate-700/70 dark:bg-slate-900/50 dark:shadow-none">
                 <h4 className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Assignment</h4>
                 <p className="mt-1 text-sm text-gray-700">
                   {selectedTruck.notes ? selectedTruck.notes : "No active assignment"}
@@ -731,7 +731,7 @@ export default function FleetTrucksMap({ fleet }: FleetTrucksMapProps) {
               </div>
 
               {selectedTruck.lastEvent && (
-                <div className="rounded-xl border border-dashed border-gray-200 p-3">
+                <div className="rounded-xl border border-dashed border-gray-200 p-3 dark:border-slate-600/70 dark:bg-slate-900/40">
                   <h4 className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                     Last update
                   </h4>
@@ -772,8 +772,8 @@ export default function FleetTrucksMap({ fleet }: FleetTrucksMapProps) {
                       onClick={() => setMarkerIdx(index)}
                       className={`flex w-full items-start justify-between rounded-xl border px-3 py-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${
                         isSelected
-                          ? "border-emerald-400 bg-emerald-50/80 text-emerald-800 shadow-inner"
-                          : "border-gray-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/40"
+                          ? "border-emerald-400 bg-emerald-50/80 text-emerald-800 shadow-inner dark:border-emerald-400/70 dark:bg-emerald-500/10 dark:text-emerald-100"
+                          : "border-gray-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/40 dark:border-slate-700/70 dark:bg-slate-900/50 dark:hover:border-emerald-400/70 dark:hover:bg-emerald-500/10"
                       }`}
                     >
                       <div className="space-y-1 pr-3">

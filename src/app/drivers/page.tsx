@@ -137,14 +137,14 @@ export default async function Drivers() {
         </div>
         <Link
           href="/drivers/new"
-          className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium shadow-sm transition hover:border-gray-400 hover:bg-gray-50"
+          className="inline-flex items-center rounded-md border border-gray-300 bg-white/90 px-4 py-2 text-sm font-medium shadow-sm transition hover:border-gray-400 hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:shadow-none dark:hover:border-emerald-400 dark:hover:bg-slate-800"
         >
           + New driver
         </Link>
       </div>
 
       {totalDrivers === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center text-gray-600">
+        <div className="rounded-lg border border-dashed border-gray-300 bg-white/90 p-8 text-center text-gray-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200">
           <p className="text-lg font-medium">No drivers yet</p>
           <p className="mt-2 text-sm">
             Start by adding your first driver. You will see utilization metrics populate here once trips
@@ -152,7 +152,7 @@ export default async function Drivers() {
           </p>
           <Link
             href="/drivers/new"
-            className="mt-6 inline-block rounded bg-black px-4 py-2 text-sm font-medium text-white"
+            className="mt-6 inline-block rounded bg-black px-4 py-2 text-sm font-medium text-white dark:bg-emerald-500 dark:hover:bg-emerald-400"
           >
             Create driver
           </Link>
@@ -160,24 +160,24 @@ export default async function Drivers() {
       ) : (
         <>
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <article className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <article className="rounded-lg border border-gray-200 bg-white/90 p-5 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/60 dark:shadow-none">
               <p className="text-xs uppercase tracking-wide text-gray-500">Active drivers</p>
               <p className="mt-2 text-2xl font-semibold">{activeDrivers}</p>
               <p className="text-xs text-gray-500">{inactiveDrivers} inactive</p>
             </article>
-            <article className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <article className="rounded-lg border border-gray-200 bg-white/90 p-5 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/60 dark:shadow-none">
               <p className="text-xs uppercase tracking-wide text-gray-500">Open loads</p>
               <p className="mt-2 text-2xl font-semibold">{aggregated.openTrips}</p>
               <p className="text-xs text-gray-500">Drivers with assignments in progress</p>
             </article>
-            <article className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <article className="rounded-lg border border-gray-200 bg-white/90 p-5 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/60 dark:shadow-none">
               <p className="text-xs uppercase tracking-wide text-gray-500">Avg miles / driver</p>
               <p className="mt-2 text-2xl font-semibold">
                 {preciseNumberFormatter.format(averageMilesPerDriver)}
               </p>
               <p className="text-xs text-gray-500">Based on drivers with recorded trips</p>
             </article>
-            <article className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <article className="rounded-lg border border-gray-200 bg-white/90 p-5 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/60 dark:shadow-none">
               <p className="text-xs uppercase tracking-wide text-gray-500">Avg trips / active driver</p>
               <p className="mt-2 text-2xl font-semibold">
                 {preciseNumberFormatter.format(averageTripsPerActiveDriver)}
@@ -208,7 +208,7 @@ export default async function Drivers() {
                 return (
                   <li
                     key={driver.id}
-                    className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+                    className="rounded-lg border border-gray-200 bg-white/90 p-6 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/60 dark:shadow-none"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="space-y-2">
@@ -217,8 +217,8 @@ export default async function Drivers() {
                           <span
                             className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
                               driver.active
-                                ? "bg-emerald-100 text-emerald-700"
-                                : "bg-gray-200 text-gray-700"
+                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200"
+                                : "bg-gray-200 text-gray-700 dark:bg-slate-700/60 dark:text-slate-200"
                             }`}
                           >
                             {driver.active ? "Active" : "Inactive"}
@@ -235,7 +235,7 @@ export default async function Drivers() {
                         </div>
                       </div>
                       <Link
-                        className="inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-gray-400 hover:text-gray-900"
+                        className="inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-gray-400 hover:text-gray-900 dark:border-slate-600 dark:text-slate-100 dark:hover:border-emerald-400 dark:hover:text-emerald-300"
                         href={`/drivers/${driver.id}/edit`}
                       >
                         Manage
