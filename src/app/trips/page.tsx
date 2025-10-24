@@ -17,16 +17,51 @@ export default async function TripsPage() {
     status: trip.status,
   }));
 
+  const completedStatus = "completed";
+  const bookedStatuses = new Set([
+    "created",
+    "dispatched",
+    "inprogress",
+    "booked",
+    "open",
+  ]);
+
+  const completedTrips = items.filter(
+    (trip) => trip.status?.toLowerCase() === completedStatus,
+  );
+  const bookedTrips = items.filter((trip) => {
+    const status = trip.status?.toLowerCase();
+    return status != null && bookedStatuses.has(status);
+  });
+
   return (
-    <main className="max-w-5xl mx-auto p-6 space-y-4">
+    <main className="max-w-5xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Trips</h1>
+        <h1 className="text-2xl font-bold">Trips Demo</h1>
       </div>
 
       {items.length === 0 ? (
         <p className="text-gray-600">No trips yet.</p>
       ) : (
-        <TripsTable trips={items} />
+        <div className="space-y-8">
+          <section className="space-y-4">
+            <h2 className="text-xl font-semibold text-slate-100">Trips Booked</h2>
+            {bookedTrips.length === 0 ? (
+              <p className="text-gray-600">No booked trips at the moment.</p>
+            ) : (
+              <TripsTable trips={bookedTrips} />
+            )}
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-xl font-semibold text-slate-100">Trips Completed</h2>
+            {completedTrips.length === 0 ? (
+              <p className="text-gray-600">No completed trips yet.</p>
+            ) : (
+              <TripsTable trips={completedTrips} />
+            )}
+          </section>
+        </div>
       )}
     </main>
   );
