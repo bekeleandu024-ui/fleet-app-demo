@@ -1,12 +1,19 @@
 import prisma from "@/server/prisma";
 import Link from "next/link";
 
+import StatusButtons from "./StatusButtons";
+
 function num(n: any) {
   return n == null ? "-" : Number(n).toFixed(2);
 }
 
-export default async function TripDetail({ params }: { params: { id: string } }) {
-  const t = await prisma.trip.findUnique({ where: { id: params.id } });
+export default async function TripDetail({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const t = await prisma.trip.findUnique({ where: { id } });
   if (!t) return <main className="p-6">Not found</main>;
 
   return (
@@ -62,35 +69,9 @@ export default async function TripDetail({ params }: { params: { id: string } })
           </div>
         </div>
       </div>
-
       <div className="flex gap-2">
-        <StatusButtons id={t.id} status={t.status} hasEnd={!!t.tripEnd} miles={Number(t.miles)} />
+        <StatusButtons id={t.id} status={t.status} />
       </div>
     </main>
-  );
-}
-
-function StatusButtons({ id, status }: { id: string; status: string; hasEnd: boolean; miles: number }) {
-  "use client";
-  async function setStatus(s: string) {
-    const res = await fetch(`/api/trips/${id}/status`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: s }),
-    });
-    if (res.ok) location.reload();
-    else alert(await res.text());
-  }
-  const Btn = (p: any) => <button className="px-3 py-2 rounded border" {...p} />;
-
-  return (
-    <div className="space-x-2">
-      {status === "Created" && <Btn onClick={() => setStatus("Dispatched")}>Dispatch</Btn>}
-      {status === "Dispatched" && <Btn onClick={() => setStatus("InProgress")}>Start</Btn>}
-      {status === "InProgress" && <Btn onClick={() => setStatus("Completed")}>Complete</Btn>}
-      {(status === "Created" || status === "Dispatched" || status === "InProgress") && (
-        <Btn onClick={() => setStatus("Cancelled")}>Cancel</Btn>
-      )}
-    </div>
   );
 }
