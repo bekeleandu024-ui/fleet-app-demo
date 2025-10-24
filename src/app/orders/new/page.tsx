@@ -196,9 +196,12 @@ export default function NewOrderPage() {
     }
   }
 
-  const hasOcrText = ocrText.trim().length > 0;
   const previewEntries = parsedPreview ? buildPreviewEntries(parsedPreview) : [];
   const readyCount = previewEntries.filter(entry => entry.selected && entry.willFill).length;
+  const hasOcrText = ocrText.trim().length > 0;
+  const hasParsedFields = previewEntries.length > 0;
+  const applyDisabled = !hasParsedFields || readyCount === 0;
+  const showPreviewSection = hasParsedFields || hasOcrText || !!ocrError;
   const actionLabel = readyCount > 0 ? `Apply ${readyCount} field${readyCount === 1 ? "" : "s"}` : "Apply fields";
 
   return (
@@ -211,14 +214,14 @@ export default function NewOrderPage() {
             <button
               type="button"
               onClick={applyParsedOrder}
-              disabled={!hasOcrText || readyCount === 0}
+              disabled={applyDisabled}
               className="rounded border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {actionLabel}
             </button>
           }
         />
-        {hasOcrText && (
+        {showPreviewSection && (
           <div className="mt-3 rounded border border-gray-200 bg-gray-50 p-3">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -293,7 +296,7 @@ export default function NewOrderPage() {
             ) : (
               <p className="mt-2 text-sm text-gray-500">No structured order details detected yet.</p>
             )}
-            {ocrText && (
+            {hasOcrText && (
               <div className="mt-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
