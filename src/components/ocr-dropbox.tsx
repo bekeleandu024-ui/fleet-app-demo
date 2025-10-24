@@ -28,6 +28,8 @@ const toneClass = {
   success: "text-green-600",
 } as const;
 
+type StatusTone = keyof typeof toneClass;
+
 async function loadTesseract() {
   if (!tesseractPromise) {
     tesseractPromise = import("tesseract.js").then(
@@ -47,7 +49,7 @@ export default function OcrDropBox({
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [statusTone, setStatusTone] = useState<"info" | "error" | "success">("info");
+  const [statusTone, setStatusTone] = useState<StatusTone>("info");
   const [progress, setProgress] = useState(0);
   const boxRef = useRef<HTMLDivElement>(null);
   const previewUrl = useRef<string | null>(null);
@@ -186,9 +188,10 @@ export default function OcrDropBox({
               <div
                 className="h-full rounded bg-blue-500 transition-all duration-200"
                 style={{
-                  width: `${
-                    Math.min(100, Math.max(0, Math.round(progress * 100))) || 0
-                  }%`,
+                  width: `${Math.min(
+                    100,
+                    Math.max(0, Math.round((progress || 0) * 100))
+                  )}%`,
                 }}
               />
             </div>
