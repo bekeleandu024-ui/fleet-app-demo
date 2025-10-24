@@ -28,8 +28,16 @@ export function parseOcrToOrder(rawText: string): ParsedOrder {
   const result: ParsedOrder = {};
 
   assignIf(result, "customer", findValue(sanitized, lines, [/(?:customer|consignee|client)/i]));
-  assignIf(result, "origin", findValue(sanitized, lines, [/(?:pickup(?!\s*(?:window|time))(?:\s*(?:origin|location))?\s*(?:address)?|origin\s*(?:address|location)?)/i]));
-  assignIf(result, "destination", findValue(sanitized, lines, [/(?:delivery(?!\s*(?:window|time))(?:\s*(?:destination|location))?\s*(?:address)?|destination\s*(?:address|location)?)/i]));
+  assignIf(
+    result,
+    "origin",
+    findValue(sanitized, lines, [/(?:pickup(?!\s*(?:window|time))[^:\n]*?(?:origin|location)?[^:\n]*?(?:address)?|origin[^:\n]*?(?:address|location)?)/i])
+  );
+  assignIf(
+    result,
+    "destination",
+    findValue(sanitized, lines, [/(?:delivery(?!\s*(?:window|time))[^:\n]*?(?:destination|location)?[^:\n]*?(?:address)?|destination[^:\n]*?(?:address|location)?)/i])
+  );
   assignIf(result, "requiredTruck", findValue(sanitized, lines, [/(?:required\s*truck|req(?:uired)?\s*truck|truck\s*type|equipment)/i]));
 
   const puStart = firstDefined(
@@ -62,6 +70,12 @@ export function parseOcrToOrder(rawText: string): ParsedOrder {
 
   assignIf(result, "notes", findValue(sanitized, lines, [/(?:notes?|comments?|instructions?)/i]));
 
+  const contact = findValue(sanitized, lines, [/(?:contact|dispatcher|phone)/i]);
+  if (contact) {
+    const contactLine = `Contact: ${contact}`;
+    result.notes = result.notes ? `${result.notes}\n${contactLine}` : contactLine;
+  }
+
   return result;
 }
 
@@ -78,18 +92,34 @@ function parseWindow(rawValue?: string | null): WindowParts {
   if (!cleaned) return {};
 
   const normalized = cleaned.replace(/\s+to\s+/gi, " - ");
-  const match = normalized.match(/^(.*?)\s*(?:-|–|—)\s*(.+)$/);
 
-  if (!match) {
+  let rawStart: string | undefined;
+  let rawEnd: string | undefined;
+
+  const spacedSeparator = /\s+(?:-|–|—)\s+/.exec(normalized);
+  if (spacedSeparator) {
+    rawStart = clean(normalized.slice(0, spacedSeparator.index));
+    rawEnd = clean(normalized.slice(spacedSeparator.index + spacedSeparator[0].length));
+  } else {
+    const firstColon = normalized.indexOf(":");
+    let hyphenIndex = firstColon >= 0 ? normalized.indexOf("-", firstColon) : -1;
+    if (hyphenIndex < 0) {
+      hyphenIndex = normalized.lastIndexOf("-");
+    }
+    if (hyphenIndex > 0 && hyphenIndex < normalized.length - 1) {
+      rawStart = clean(normalized.slice(0, hyphenIndex));
+      rawEnd = clean(normalized.slice(hyphenIndex + 1));
+    }
+  }
+
+  if (!rawStart) {
     const start = normalizeDateTime(normalized);
     return { start, rawStart: normalized };
   }
 
-  const rawStart = clean(match[1]);
-  const rawEnd = clean(match[2]);
   const start = normalizeDateTime(rawStart);
-  let end = normalizeDateTime(rawEnd);
-  if (!end && start) {
+  let end = rawEnd ? normalizeDateTime(rawEnd) : undefined;
+  if (!end && start && rawEnd) {
     end = combineDateAndTime(start, rawEnd);
   }
 
@@ -108,7 +138,10 @@ function resolveWithStart(start: string | undefined, raw?: string | null) {
 
 function findValue(text: string, lines: string[], patterns: RegExp[]): string | undefined {
   for (const pattern of patterns) {
-    const inline = new RegExp(`(?:^|\n)\s*(?:${pattern.source})\s*[:\-]\s*([^\n]+)`, "i").exec(text);
+    const inline = new RegExp(
+      `(?:^|\n)\\s*(?:${pattern.source})(?:[^\\n]*?)\\s*[:\\-]\\s*([^\\n]+)`,
+      "i"
+    ).exec(text);
     if (inline) {
       const value = clean(inline[1]);
       if (value) return value;
@@ -119,17 +152,48 @@ function findValue(text: string, lines: string[], patterns: RegExp[]): string | 
     const line = lines[i];
     if (!line) continue;
     for (const pattern of patterns) {
-      const exact = new RegExp(`^(?:${pattern.source})$`, "i");
+      const exact = new RegExp(`^(?:${pattern.source})(?:\s*[:\-]\s*)?$`, "i");
       if (exact.test(line)) {
-        for (let j = i + 1; j < lines.length; j++) {
-          const candidate = clean(lines[j]);
-          if (candidate) return candidate;
-        }
+        const collected = collectFollowing(lines, i + 1);
+        if (collected) return collected;
       }
     }
   }
 
   return undefined;
+}
+
+function collectFollowing(lines: string[], startIndex: number): string | undefined {
+  const values: string[] = [];
+  for (let j = startIndex; j < lines.length; j++) {
+    const raw = lines[j];
+    if (!raw) {
+      if (values.length) break;
+      continue;
+    }
+
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      if (values.length) break;
+      continue;
+    }
+
+    if (/:\s*$/.test(trimmed) && values.length === 0) {
+      // Likely another label with no value; skip and continue searching.
+      continue;
+    }
+
+    if (/:\s*/.test(trimmed) && values.length > 0) {
+      break;
+    }
+
+    values.push(clean(trimmed));
+
+    if (values.length >= 2) break;
+  }
+
+  if (values.length === 0) return undefined;
+  return values.join(" ");
 }
 
 function normalizeText(text: string) {
