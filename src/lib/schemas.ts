@@ -39,6 +39,7 @@ export const DriverCreate = z
   .object({
     name: requiredTrimmedString("Name is required"),
     homeBase: optionalTrimmedString(),
+    license: optionalTrimmedString(),
     active: z.coerce.boolean().optional().default(true),
   })
   .strip();
