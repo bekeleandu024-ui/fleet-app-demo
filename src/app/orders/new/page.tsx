@@ -47,7 +47,8 @@ export default function NewOrderPage() {
     const text = result.text ?? "";
     setOcrText(text);
     setOcrError(result.error ?? null);
-    setParsedPreview(text ? parseOcrToOrder(text) : null);
+    const parsed = result.parsed ?? (text ? parseOcrToOrder(text) : null);
+    setParsedPreview(parsed);
 
     if (typeof result.ocrConfidence === "number") {
       // eslint-disable-next-line no-console
@@ -73,22 +74,18 @@ export default function NewOrderPage() {
   }
 
   function applyParsedOrder() {
-    if (!ocrText.trim()) return;
-    const parsed = parseOcrToOrder(ocrText);
+    const parsed = parsedPreview ?? (ocrText.trim() ? parseOcrToOrder(ocrText) : null);
+    if (!parsed) return;
     setParsedPreview(parsed);
 
     setForm(prev => {
-      let changed = false;
       const next = { ...prev };
       for (const field of fieldConfig) {
         const value = parsed[field.parsedKey];
         if (!value) continue;
-        if (!prev[field.formKey]) {
-          next[field.formKey] = value;
-          changed = true;
-        }
+        next[field.formKey] = value;
       }
-      return changed ? next : prev;
+      return next;
     });
   }
 
@@ -101,7 +98,7 @@ export default function NewOrderPage() {
           return {
             ...field,
             value,
-            willFill: !form[field.formKey],
+            willFill: form[field.formKey] !== value,
           };
         })
         .filter((entry): entry is { parsedKey: keyof ParsedOrder; formKey: keyof typeof form; label: string; value: string; willFill: boolean } =>
@@ -143,7 +140,7 @@ export default function NewOrderPage() {
                     <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">{entry.label}</div>
                     <div className="mt-1 break-words text-sm text-gray-900">{entry.value}</div>
                     <div className={`mt-1 text-xs ${entry.willFill ? "text-green-600" : "text-gray-500"}`}>
-                      {entry.willFill ? "Will fill empty field" : "Field already filled"}
+                      {entry.willFill ? "Will update form field" : "Field already matches"}
                     </div>
                   </div>
                 ))}
