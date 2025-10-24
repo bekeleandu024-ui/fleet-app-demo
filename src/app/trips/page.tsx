@@ -1,5 +1,6 @@
 import prisma from "@/server/prisma";
 import TripsTable, { type TripListItem } from "./ui-trips-table";
+import AITripsAssistant from "./ai-trips-assistant";
 
 export default async function TripsPage() {
   const trips = await prisma.trip.findMany({
@@ -35,10 +36,12 @@ export default async function TripsPage() {
   });
 
   return (
-    <main className="max-w-5xl mx-auto p-6 space-y-6">
+    <main className="mx-auto max-w-5xl space-y-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Trips Demo</h1>
       </div>
+
+      <AITripsAssistant />
 
       {items.length === 0 ? (
         <p className="text-gray-600">No trips yet.</p>

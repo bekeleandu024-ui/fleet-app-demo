@@ -1,5 +1,6 @@
 import prisma from "@/server/prisma";
 import Link from "next/link";
+import AIOrdersAssistant from "./ai-orders-assistant";
 
 function formatDateTime(value?: Date | null) {
   if (!value) return null;
@@ -30,13 +31,15 @@ export default async function OrdersPage() {
   });
 
   return (
-    <main className="max-w-3xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-4">
+    <main className="max-w-3xl mx-auto space-y-6 p-6">
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Orders</h1>
-        <Link href="/orders/new" className="px-3 py-2 rounded-lg border">
+        <Link href="/orders/new" className="rounded-lg border px-3 py-2">
           + New Order
         </Link>
       </div>
+
+      <AIOrdersAssistant />
 
       {orders.length === 0 ? (
         <p className="text-gray-600">No orders yet. Create your first one.</p>
