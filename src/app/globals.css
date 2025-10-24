@@ -3,6 +3,13 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --text-strong: #111827;
+  --text-default: #1f2937;
+  --text-muted: #374151;
+  --text-subtle: #475569;
+  --text-faint: #64748b;
+  --select-background: #ffffff;
+  --select-foreground: #1f2937;
 }
 
 @theme inline {
@@ -15,7 +22,14 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
-    --foreground: #ededed;
+    --foreground: #f4f4f5;
+    --text-strong: #f9fafb;
+    --text-default: #f4f4f5;
+    --text-muted: #e5e7eb;
+    --text-subtle: #d1d5db;
+    --text-faint: #cbd5f5;
+    --select-background: #1f2937;
+    --select-foreground: #f4f4f5;
   }
 }
 
@@ -23,6 +37,44 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+body :where(.text-gray-900) {
+  color: var(--text-strong) !important;
+}
+
+body :where(.text-gray-800) {
+  color: var(--text-strong) !important;
+}
+
+body :where(.text-gray-700) {
+  color: var(--text-default) !important;
+}
+
+body :where(.text-gray-600) {
+  color: var(--text-muted) !important;
+}
+
+body :where(.text-gray-500) {
+  color: var(--text-subtle) !important;
+}
+
+body :where(.text-gray-400) {
+  color: var(--text-faint) !important;
+}
+
+body select,
+body select option,
+body .text-select,
+body [role="listbox"],
+body [role="option"] {
+  color: var(--select-foreground);
+  background-color: var(--select-background);
+}
+
+body select:disabled,
+body select option:disabled {
+  color: color-mix(in srgb, var(--select-foreground) 55%, transparent);
 }
 
 .fleet-map-container .maplibregl-canvas {
