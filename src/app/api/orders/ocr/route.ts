@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createWorker, type Worker } from "tesseract.js";
-import { preprocessInput } from "@/lib/ocr/preprocess";
+import { preprocessImage } from "@/lib/ocr/preprocess";
 import { parseOrderFromOCR } from "@/lib/ocr/parse";
 import type { OCRLine, OCRWord, OCREndpointResult } from "@/lib/ocr/types";
 
@@ -100,6 +100,8 @@ async function recognizeImage(buffer: Buffer) {
 }
 
 export async function POST(request: NextRequest) {
+  let stage: "Preprocess" | "OCR" | "Parse" = "Preprocess";
+
   try {
     if (limitRequest(request)) {
       return NextResponse.json<OCREndpointResult>({ ok: false, error: "Too many requests" }, { status: 429 });
@@ -124,13 +126,18 @@ export async function POST(request: NextRequest) {
     const locale = formData.get("locale")?.toString();
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    const preprocessed = await preprocessInput(buffer, { mimeType });
+    const preprocessed = await preprocessImage(buffer, mimeType);
+    stage = "OCR";
     const data = await recognizeImage(preprocessed.buffer);
 
     const text = String(data?.text ?? "");
     const lines: OCRLine[] = Array.isArray(data?.lines) ? data.lines.map(toLine) : [];
 
+    stage = "Parse";
     const parsed = parseOrderFromOCR({ text, lines }, { tz, locale });
+
+    const previewMime = mimeType === "application/pdf" ? "image/png" : mimeType;
+    const previewDataUrl = `data/${previewMime};base64,${preprocessed.buffer.toString("base64")}`;
 
     const response: OCREndpointResult = {
       ok: true,
@@ -138,9 +145,9 @@ export async function POST(request: NextRequest) {
       confidence: parsed.confidence,
       warnings: parsed.warnings,
       boxes: {
-        imageHeight: preprocessed.height,
-        imageWidth: preprocessed.width,
-        previewDataUrl: preprocessed.dataUrl,
+        imageHeight: preprocessed.meta.height,
+        imageWidth: preprocessed.meta.width,
+        previewDataUrl,
         lines,
         words: Array.isArray(data?.words) ? data.words.map(toWord) : [],
       },
@@ -148,10 +155,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error: any) {
-    console.error("OCR failure", error);
-    return NextResponse.json<OCREndpointResult>(
-      { ok: false, error: error?.message ?? "Unable to process document" },
-      { status: 500 },
-    );
+    console.error(`OCR failure during ${stage}`, error);
+    const message = error?.message ? `${stage} failed: ${error.message}` : `Unable to process document (${stage})`;
+    return NextResponse.json<OCREndpointResult>({ ok: false, error: message }, { status: 500 });
   }
 }
