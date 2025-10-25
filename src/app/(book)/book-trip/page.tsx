@@ -1,4 +1,4 @@
-import prisma from "@/server/prisma";
+import { prisma } from "@/src/server/prisma";
 import { BookTripClient } from "./BookTripClient";
 import type { AvailableOrderSummary, DriverOption, UnitOption } from "./types";
 import { calcBreakevenCPM, computeUrgency, marginFromRates, suggestRate } from "@/lib/booking";
@@ -14,6 +14,19 @@ export default async function BookTripPage() {
     prisma.order.findMany({
       where: { trips: { none: {} } },
       orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        customer: true,
+        origin: true,
+        destination: true,
+        puWindowStart: true,
+        puWindowEnd: true,
+        delWindowStart: true,
+        delWindowEnd: true,
+        requiredTruck: true,
+        notes: true,
+        createdAt: true,
+      },
     }),
     prisma.driver.findMany({
       where: { active: true },
@@ -25,17 +38,26 @@ export default async function BookTripPage() {
       orderBy: { code: "asc" },
       select: { id: true, code: true, type: true, homeBase: true },
     }),
-    prisma.rate.findFirst({ orderBy: { createdAt: "asc" } }),
+    prisma.rate.findFirst({
+      orderBy: { id: "desc" },
+      select: {
+        fixedCPM: true,
+        wageCPM: true,
+        addOnsCPM: true,
+        rollingCPM: true,
+      },
+    }),
   ]);
 
-  const costTemplate = referenceRate
-    ? {
-        fixedCPM: Number(referenceRate.fixedCPM),
-        wageCPM: Number(referenceRate.wageCPM),
-        addOnsCPM: Number(referenceRate.addOnsCPM),
-        rollingCPM: Number(referenceRate.rollingCPM),
-      }
-    : { fixedCPM: 0, wageCPM: 0, addOnsCPM: 0, rollingCPM: 0 };
+  const fallbackRate = { fixedCPM: 0, wageCPM: 0, addOnsCPM: 0, rollingCPM: 0 };
+  const rate = referenceRate ?? fallbackRate;
+
+  const costTemplate = {
+    fixedCPM: Number(rate.fixedCPM ?? 0),
+    wageCPM: Number(rate.wageCPM ?? 0),
+    addOnsCPM: Number(rate.addOnsCPM ?? 0),
+    rollingCPM: Number(rate.rollingCPM ?? 0),
+  };
 
   const breakevenDefault = calcBreakevenCPM(costTemplate);
 
