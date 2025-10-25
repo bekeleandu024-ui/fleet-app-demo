@@ -5,8 +5,8 @@ import { useEffect, useState, useCallback, type FormEvent } from "react";
 
 import type { TripDTO } from "./types";
 
-type DriverOption = { id: string; name: string };
-type UnitOption = { id: string; code: string; name: string | null };
+type DriverOption = { id: string; name: string; inactive?: boolean };
+type UnitOption = { id: string; code: string; name: string | null; inactive?: boolean };
 
 type TripFormState = {
   driverId: string;
@@ -184,11 +184,25 @@ export default function EditForm({ trip, drivers, units, exposePatch }: EditForm
     });
   };
 
-  const resolveDriverName = () =>
-    form.driverId ? drivers.find(({ id }) => id === form.driverId)?.name ?? "" : form.driver;
+  const resolveDriverName = () => {
+    if (form.driverId) {
+      const match = drivers.find(({ id }) => id === form.driverId);
+      if (match?.name) {
+        return match.name;
+      }
+    }
+    return form.driver;
+  };
 
-  const resolveUnitCode = () =>
-    form.unitId ? units.find(({ id }) => id === form.unitId)?.code ?? "" : form.unit;
+  const resolveUnitCode = () => {
+    if (form.unitId) {
+      const match = units.find(({ id }) => id === form.unitId);
+      if (match?.code) {
+        return match.code;
+      }
+    }
+    return form.unit;
+  };
 
   const handleAutofill = async () => {
     setAutofilling(true);
@@ -291,11 +305,24 @@ export default function EditForm({ trip, drivers, units, exposePatch }: EditForm
       return;
     }
 
+    const resolvedDriver = resolveDriverName().trim() || form.driver.trim();
+    const resolvedUnit = resolveUnitCode().trim() || form.unit.trim();
+
+    if (!resolvedDriver) {
+      alert("Driver is required.");
+      return;
+    }
+
+    if (!resolvedUnit) {
+      alert("Unit is required.");
+      return;
+    }
+
     const body = {
       driverId: form.driverId || null,
       unitId: form.unitId || null,
-      driver: resolveDriverName() || form.driver,
-      unit: resolveUnitCode() || form.unit,
+      driver: resolvedDriver,
+      unit: resolvedUnit,
       type: form.type || null,
       zone: form.zone || null,
       miles,
@@ -358,11 +385,14 @@ export default function EditForm({ trip, drivers, units, exposePatch }: EditForm
               onChange={(event) => updateForm("driverId", event.target.value)}
             >
               <option value="">(keep)</option>
-              {drivers.map((driver) => (
-                <option key={driver.id} value={driver.id}>
-                  {driver.name}
-                </option>
-              ))}
+              {drivers.map((driver) => {
+                const label = driver.inactive ? `${driver.name} (inactive)` : driver.name;
+                return (
+                  <option key={driver.id} value={driver.id}>
+                    {label}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div>
@@ -373,11 +403,15 @@ export default function EditForm({ trip, drivers, units, exposePatch }: EditForm
               onChange={(event) => updateForm("unitId", event.target.value)}
             >
               <option value="">(keep)</option>
-              {units.map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.name ? `${unit.code} — ${unit.name}` : unit.code}
-                </option>
-              ))}
+              {units.map((unit) => {
+                const baseLabel = unit.name ? `${unit.code} — ${unit.name}` : unit.code;
+                const label = unit.inactive ? `${baseLabel} (inactive)` : baseLabel;
+                return (
+                  <option key={unit.id} value={unit.id}>
+                    {label}
+                  </option>
+                );
+              })}
             </select>
           </div>
         </div>

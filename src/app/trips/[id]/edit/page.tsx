@@ -67,7 +67,16 @@ export default async function EditTrip({ params }: PageParams) {
   ]);
 
   const drivers = driversRaw.map((driver) => ({ id: driver.id, name: driver.name }));
+  if (tripRaw.driverId && !drivers.some(({ id }) => id === tripRaw.driverId)) {
+    const fallbackName = tripRaw.driver?.trim() || "(unknown driver)";
+    drivers.push({ id: tripRaw.driverId, name: fallbackName, inactive: true });
+  }
+
   const units = unitsRaw.map((unit) => ({ id: unit.id, code: unit.code, name: unit.name }));
+  if (tripRaw.unitId && !units.some(({ id }) => id === tripRaw.unitId)) {
+    const fallbackCode = tripRaw.unit?.trim() || "(unknown unit)";
+    units.push({ id: tripRaw.unitId, code: fallbackCode, name: null, inactive: true });
+  }
 
   const types = filterNullish(typeRecords.map(({ type }) => type)).sort((a, b) => a.localeCompare(b));
   const zones = filterNullish(zoneRecords.map(({ zone }) => zone)).sort((a, b) => a.localeCompare(b));

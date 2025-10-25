@@ -6,8 +6,8 @@ import CostInsights from "./CostInsights";
 import EditForm from "./ui-edit-form";
 import AiOptimizerPanel from "./AiOptimizerPanel";
 
-type DriverOption = { id: string; name: string };
-type UnitOption = { id: string; code: string; name: string | null };
+type DriverOption = { id: string; name: string; inactive?: boolean };
+type UnitOption = { id: string; code: string; name: string | null; inactive?: boolean };
 type SimilarTrip = {
   miles: number | null;
   revenue: number | null;

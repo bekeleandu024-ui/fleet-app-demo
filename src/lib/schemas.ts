@@ -1,4 +1,4 @@
-import { z } from "next/dist/compiled/zod";
+import { z } from "zod";
 
 const emptyToUndefined = (value: unknown) => {
   if (value == null) return undefined;
