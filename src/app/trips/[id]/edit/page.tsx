@@ -8,9 +8,9 @@ import { mapTripToDTO } from "./map";
 import type { TripDTO } from "./types";
 
 interface PageParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 function filterNullish(values: Array<string | null>): string[] {
@@ -32,8 +32,10 @@ type SimilarTrip = {
 };
 
 export default async function EditTrip({ params }: PageParams) {
+  const { id } = await params;
+
   const tripRaw = await prisma.trip.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { order: true },
   });
 
