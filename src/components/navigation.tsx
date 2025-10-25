@@ -7,6 +7,7 @@ const navigationItems = [
   { href: "/", label: "Overview" },
   { href: "/orders", label: "Orders" },
   { href: "/trips", label: "Trips" },
+  { href: "/book-trip", label: "Book" },
   { href: "/live-fleet", label: "Fleet map" },
   { href: "/drivers", label: "Drivers" },
   { href: "/units", label: "Units" },
