@@ -15,12 +15,15 @@
   },
   "dependencies": {
     "@prisma/client": "^6.17.1",
+    "chrono-node": "file:src/vendor/chrono-node",
+    "luxon": "file:src/vendor/luxon",
     "next": "15.5.6",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hook-form": "file:src/vendor/react-hook-form",
-    "zod": "^3.23.0",
-    "tesseract.js": "^5.0.7"
+    "sharp": "^0.33.5",
+    "tesseract.js": "^5.0.7",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.9",

@@ -18,6 +18,8 @@
     "paths": {
       "@/*": ["./src/*"],                // <-- your alias (good)
       "@/src/*": ["./src/*"],
+      "chrono-node": ["./src/vendor/chrono-node"],
+      "luxon": ["./src/vendor/luxon"],
       "react-hook-form": ["./src/vendor/react-hook-form"]
     },
 
