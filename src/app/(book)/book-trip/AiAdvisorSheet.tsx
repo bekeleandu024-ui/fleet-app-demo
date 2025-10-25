@@ -185,7 +185,12 @@ export function AiAdvisorSheet({
                     <dt className="text-xs uppercase text-slate-500">Unit</dt>
                     <dd className="text-slate-300">
                       {recommendation.unitCode || recommendation.unitId
-                        ? recommendation.unitCode || units.find((u) => u.id === recommendation.unitId)?.code
+                        ? (() => {
+                            if (recommendation.unitCode) return recommendation.unitCode;
+                            const unit = units.find((u) => u.id === recommendation.unitId);
+                            if (!unit) return "—";
+                            return unit.name ? `${unit.code} — ${unit.name}` : unit.code ?? "—";
+                          })()
                         : "—"}
                     </dd>
                   </div>

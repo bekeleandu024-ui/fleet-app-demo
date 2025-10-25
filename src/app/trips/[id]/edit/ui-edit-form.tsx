@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback, type FormEvent } from "react";
 import type { TripDTO } from "./types";
 
 type DriverOption = { id: string; name: string };
-type UnitOption = { id: string; code: string };
+type UnitOption = { id: string; code: string; name: string | null };
 
 type TripFormState = {
   driverId: string;
@@ -375,7 +375,7 @@ export default function EditForm({ trip, drivers, units, exposePatch }: EditForm
               <option value="">(keep)</option>
               {units.map((unit) => (
                 <option key={unit.id} value={unit.id}>
-                  {unit.code}
+                  {unit.name ? `${unit.code} — ${unit.name}` : unit.code}
                 </option>
               ))}
             </select>

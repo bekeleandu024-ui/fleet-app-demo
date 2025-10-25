@@ -15,7 +15,7 @@ type Similar = Pick<
   | "totalCost"
   | "profit"
   | "marginPct"
-> & { createdAt?: string | Date };
+> & { createdAt?: string | null };
 
 export default function CostInsights({
   trip,

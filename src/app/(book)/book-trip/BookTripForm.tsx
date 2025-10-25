@@ -399,7 +399,11 @@ export const BookTripForm = React.forwardRef<BookTripFormHandle, BookTripFormPro
           <datalist id="units-list">
             {units.map((unit) => (
               <option key={unit.id} value={unit.code}>
-                {unit.type ? `${unit.code} – ${unit.type}` : unit.code}
+                {unit.name
+                  ? `${unit.code} – ${unit.name}`
+                  : unit.type
+                  ? `${unit.code} – ${unit.type}`
+                  : unit.code}
               </option>
             ))}
           </datalist>

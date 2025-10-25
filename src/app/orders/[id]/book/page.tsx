@@ -2,11 +2,11 @@ import prisma from "@/server/prisma";
 import TripForm from "./ui-trip-form";
 
 type PageProps = {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 };
 
 export default async function BookTripPage({ params }: PageProps) {
-  const { id } = await params;
+  const { id } = params;
 
   const order = await prisma.order.findUnique({ where: { id } });
   if (!order) return <main className="p-6">Order not found.</main>;
@@ -20,7 +20,7 @@ export default async function BookTripPage({ params }: PageProps) {
     prisma.unit.findMany({
       where: { active: true },
       orderBy: { code: "asc" },
-      select: { id: true, code: true },
+      select: { id: true, code: true, name: true },
     }),
     prisma.rate.findMany({ distinct: ["type"], select: { type: true } }),
     prisma.rate.findMany({ distinct: ["zone"], select: { zone: true } }),

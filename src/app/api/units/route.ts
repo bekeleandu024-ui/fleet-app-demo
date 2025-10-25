@@ -24,6 +24,7 @@ export async function POST(req: Request) {
     const unit = await prisma.unit.create({
       data: {
         code: data.code,
+        name: data.name,
         type: data.type ?? null,
         homeBase: data.homeBase ?? null,
         active: data.active ?? true,

@@ -10,9 +10,9 @@ function num(n: any) {
 export default async function TripDetail({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = await params;
+  const { id } = params;
   const t = await prisma.trip.findUnique({ where: { id } });
   if (!t) return <main className="p-6">Not found</main>;
 

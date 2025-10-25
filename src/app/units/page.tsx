@@ -213,7 +213,10 @@ export default async function UnitsPage() {
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-3">
-                          <h3 className="text-xl font-semibold">{unit.code}</h3>
+                          <div>
+                            <h3 className="text-xl font-semibold">{unit.code}</h3>
+                            <p className="text-sm text-gray-500">{unit.name}</p>
+                          </div>
                           <span
                             className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
                               unit.active
