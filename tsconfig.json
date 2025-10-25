@@ -17,7 +17,8 @@
     "baseUrl": ".",                      // <-- add this
     "paths": {
       "@/*": ["./src/*"],                // <-- your alias (good)
-      "@/src/*": ["./src/*"]
+      "@/src/*": ["./src/*"],
+      "react-hook-form": ["./src/vendor/react-hook-form"]
     },
 
     "plugins": [{ "name": "next" }]
