@@ -1,8 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
-import type { MutableRefObject } from "react";
+import { useEffect, useState, useCallback, type FormEvent } from "react";
 
 import type { TripDTO } from "./types";
 
@@ -110,19 +109,10 @@ interface EditFormProps {
   trip: TripDTO;
   drivers: DriverOption[];
   units: UnitOption[];
-  types: string[];
-  zones: string[];
-  externalPatchRef?: MutableRefObject<((patch: Partial<TripDTO>) => void) | undefined>;
+  exposePatch?: (fn: (patch: Partial<TripDTO>) => void) => void;
 }
 
-export default function EditForm({
-  trip,
-  drivers,
-  units,
-  types,
-  zones,
-  externalPatchRef,
-}: EditFormProps) {
+export default function EditForm({ trip, drivers, units, exposePatch }: EditFormProps) {
   const router = useRouter();
   const [form, setForm] = useState<TripFormState>({
     driverId: trip.driverId ?? "",
@@ -145,40 +135,42 @@ export default function EditForm({
   const [autofillMessage, setAutofillMessage] = useState<string | null>(null);
   const [autofillError, setAutofillError] = useState<string | null>(null);
 
+  const applyPatch = useCallback((patch: Partial<TripDTO>) => {
+    setForm((previous) => {
+      const next = { ...previous };
+
+      const assignNumeric = (
+        key: keyof TripFormState,
+        value: number | null | undefined,
+      ) => {
+        if (value === undefined) {
+          return;
+        }
+        next[key] = value == null ? "" : String(value);
+      };
+
+      assignNumeric("revenue", patch.revenue);
+      assignNumeric("miles", patch.miles);
+      assignNumeric("fixedCPM", patch.fixedCPM);
+      assignNumeric("wageCPM", patch.wageCPM);
+      assignNumeric("addOnsCPM", patch.addOnsCPM);
+      assignNumeric("rollingCPM", patch.rollingCPM);
+
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
-    if (!externalPatchRef) {
+    if (!exposePatch) {
       return;
     }
 
-    externalPatchRef.current = (patch) => {
-      setForm((previous) => {
-        const next = { ...previous };
-
-        const assignNumeric = (
-          key: keyof TripFormState,
-          value: number | null | undefined,
-        ) => {
-          if (value === undefined) {
-            return;
-          }
-          next[key] = value == null ? "" : String(value);
-        };
-
-        assignNumeric("revenue", patch.revenue);
-        assignNumeric("miles", patch.miles);
-        assignNumeric("fixedCPM", patch.fixedCPM);
-        assignNumeric("wageCPM", patch.wageCPM);
-        assignNumeric("addOnsCPM", patch.addOnsCPM);
-        assignNumeric("rollingCPM", patch.rollingCPM);
-
-        return next;
-      });
-    };
+    exposePatch(applyPatch);
 
     return () => {
-      externalPatchRef.current = undefined;
+      exposePatch(() => {});
     };
-  }, [externalPatchRef]);
+  }, [exposePatch, applyPatch]);
 
   const updateForm = <Key extends keyof TripFormState>(key: Key, value: string) => {
     setForm((previous) => {
@@ -399,7 +391,7 @@ export default function EditForm({
               onChange={(event) => updateForm("type", event.target.value)}
             >
               <option value="">(none)</option>
-              {types.map((type) => (
+              {(trip.availableTypes ?? []).map((type) => (
                 <option key={type} value={type}>
                   {type}
                 </option>
@@ -414,7 +406,7 @@ export default function EditForm({
               onChange={(event) => updateForm("zone", event.target.value)}
             >
               <option value="">(none)</option>
-              {zones.map((zone) => (
+              {(trip.availableZones ?? []).map((zone) => (
                 <option key={zone} value={zone}>
                   {zone}
                 </option>
