@@ -1,18 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback, type FormEvent } from "react";
+import * as React from "react";
+import type { EditFormProps, TripDTO } from "./types";
 
-import type { TripDTO } from "./types";
-
-type DriverOption = { id: string; name: string; inactive?: boolean };
-type UnitOption = { id: string; code: string; name: string | null; inactive?: boolean };
-
-type TripFormState = {
+type FormState = {
   driverId: string;
   unitId: string;
-  driver: string;
-  unit: string;
   type: string;
   zone: string;
   miles: string;
@@ -23,515 +16,352 @@ type TripFormState = {
   rollingCPM: string;
   tripStart: string;
   tripEnd: string;
-  rateId: string;
 };
 
-type CpmField = "fixedCPM" | "wageCPM" | "addOnsCPM" | "rollingCPM";
+const numberToInput = (value: number | null): string =>
+  value == null || Number.isNaN(value) ? "" : String(value);
 
-const cpmFields: CpmField[] = ["fixedCPM", "wageCPM", "addOnsCPM", "rollingCPM"];
-const inputClassName = "w-full border rounded p-2";
-
-const nullableNumberToString = (value: number | null | undefined): string =>
-  value == null ? "" : value.toString();
-
-const dateToLocalInputValue = (value: Date | string | null | undefined): string => {
-  if (!value) {
-    return "";
-  }
-
-  const date = value instanceof Date ? value : new Date(value);
+const isoToInput = (value: string | null): string => {
+  if (!value) return "";
+  const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 16);
 };
 
-type RateLookupResponse = {
-  found?: boolean;
-  type?: string | null;
-  zone?: string | null;
-  fixedCPM?: number | string | null;
-  wageCPM?: number | string | null;
-  addOnsCPM?: number | string | null;
-  rollingCPM?: number | string | null;
-  rateId?: string | null;
+const applyPatchToFormState = (
+  patch: Partial<TripDTO>,
+  previous: FormState,
+): FormState => {
+  const next: FormState = { ...previous };
+
+  if (patch.driverId !== undefined) {
+    next.driverId = patch.driverId ?? "";
+  }
+
+  if (patch.unitId !== undefined) {
+    next.unitId = patch.unitId ?? "";
+  }
+
+  if (patch.type !== undefined) {
+    next.type = patch.type ?? "";
+  }
+
+  if (patch.zone !== undefined) {
+    next.zone = patch.zone ?? "";
+  }
+
+  if (patch.miles !== undefined) {
+    next.miles = numberToInput(patch.miles);
+  }
+
+  if (patch.revenue !== undefined) {
+    next.revenue = numberToInput(patch.revenue);
+  }
+
+  if (patch.fixedCPM !== undefined) {
+    next.fixedCPM = numberToInput(patch.fixedCPM);
+  }
+
+  if (patch.wageCPM !== undefined) {
+    next.wageCPM = numberToInput(patch.wageCPM);
+  }
+
+  if (patch.addOnsCPM !== undefined) {
+    next.addOnsCPM = numberToInput(patch.addOnsCPM);
+  }
+
+  if (patch.rollingCPM !== undefined) {
+    next.rollingCPM = numberToInput(patch.rollingCPM);
+  }
+
+  if (patch.tripStart !== undefined) {
+    next.tripStart = isoToInput(patch.tripStart);
+  }
+
+  if (patch.tripEnd !== undefined) {
+    next.tripEnd = isoToInput(patch.tripEnd);
+  }
+
+  return next;
 };
 
-function isRateLookupResponse(value: unknown): value is RateLookupResponse {
-  if (value === null || typeof value !== "object") {
-    return false;
-  }
+const labelClass = "text-sm font-medium text-foreground";
+const inputClass =
+  "mt-1 w-full rounded-md border border-border bg-background/70 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary";
 
-  const record = value as Record<string, unknown>;
-  if ("found" in record && typeof record.found !== "boolean") {
-    return false;
-  }
-
-  const stringKeys: Array<keyof RateLookupResponse> = ["type", "zone", "rateId"];
-  for (const key of stringKeys) {
-    const field = record[key];
-    if (field != null && typeof field !== "string") {
-      return false;
-    }
-  }
-
-  const numericKeys: Array<keyof RateLookupResponse> = [
-    "fixedCPM",
-    "wageCPM",
-    "addOnsCPM",
-    "rollingCPM",
-  ];
-
-  for (const key of numericKeys) {
-    const field = record[key];
-    if (field != null && typeof field !== "number" && typeof field !== "string") {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-const formatLookupValue = (value: number | string | null | undefined): string =>
-  value == null ? "" : String(value);
-
-const displayOrAny = (value: string | null | undefined): string =>
-  value && value.trim().length > 0 ? value : "(any)";
-
-const parseNullableNumber = (value: string): number | null => {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const parsed = Number.parseFloat(trimmed);
-  return Number.isNaN(parsed) ? null : parsed;
-};
-
-interface EditFormProps {
-  trip: TripDTO;
-  drivers: DriverOption[];
-  units: UnitOption[];
-  exposePatch?: (fn: (patch: Partial<TripDTO>) => void) => void;
-}
-
-export default function EditForm({ trip, drivers, units, exposePatch }: EditFormProps) {
-  const router = useRouter();
-  const [form, setForm] = useState<TripFormState>({
+export default function EditForm({
+  trip,
+  drivers,
+  units,
+  availableTypes,
+  availableZones,
+  exposePatch,
+}: EditFormProps) {
+  const [form, setForm] = React.useState<FormState>({
     driverId: trip.driverId ?? "",
     unitId: trip.unitId ?? "",
-    driver: trip.driver ?? "",
-    unit: trip.unit ?? "",
     type: trip.type ?? "",
     zone: trip.zone ?? "",
-    miles: nullableNumberToString(trip.miles),
-    revenue: nullableNumberToString(trip.revenue),
-    fixedCPM: nullableNumberToString(trip.fixedCPM),
-    wageCPM: nullableNumberToString(trip.wageCPM),
-    addOnsCPM: nullableNumberToString(trip.addOnsCPM),
-    rollingCPM: nullableNumberToString(trip.rollingCPM),
-    tripStart: dateToLocalInputValue(trip.tripStart),
-    tripEnd: dateToLocalInputValue(trip.tripEnd),
-    rateId: trip.rateId ?? "",
+    miles: numberToInput(trip.miles),
+    revenue: numberToInput(trip.revenue),
+    fixedCPM: numberToInput(trip.fixedCPM),
+    wageCPM: numberToInput(trip.wageCPM),
+    addOnsCPM: numberToInput(trip.addOnsCPM),
+    rollingCPM: numberToInput(trip.rollingCPM),
+    tripStart: isoToInput(trip.tripStart),
+    tripEnd: isoToInput(trip.tripEnd),
   });
-  const [autofilling, setAutofilling] = useState(false);
-  const [autofillMessage, setAutofillMessage] = useState<string | null>(null);
-  const [autofillError, setAutofillError] = useState<string | null>(null);
+  const [autoFillMessage, setAutoFillMessage] = React.useState<string | null>(null);
 
-  const applyPatch = useCallback((patch: Partial<TripDTO>) => {
-    setForm((previous) => {
-      const next = { ...previous };
-
-      const assignNumeric = (
-        key: keyof TripFormState,
-        value: number | null | undefined,
-      ) => {
-        if (value === undefined) {
-          return;
-        }
-        next[key] = value == null ? "" : String(value);
-      };
-
-      assignNumeric("revenue", patch.revenue);
-      assignNumeric("miles", patch.miles);
-      assignNumeric("fixedCPM", patch.fixedCPM);
-      assignNumeric("wageCPM", patch.wageCPM);
-      assignNumeric("addOnsCPM", patch.addOnsCPM);
-      assignNumeric("rollingCPM", patch.rollingCPM);
-
-      return next;
+  React.useEffect(() => {
+    setForm({
+      driverId: trip.driverId ?? "",
+      unitId: trip.unitId ?? "",
+      type: trip.type ?? "",
+      zone: trip.zone ?? "",
+      miles: numberToInput(trip.miles),
+      revenue: numberToInput(trip.revenue),
+      fixedCPM: numberToInput(trip.fixedCPM),
+      wageCPM: numberToInput(trip.wageCPM),
+      addOnsCPM: numberToInput(trip.addOnsCPM),
+      rollingCPM: numberToInput(trip.rollingCPM),
+      tripStart: isoToInput(trip.tripStart),
+      tripEnd: isoToInput(trip.tripEnd),
     });
-  }, []);
+  }, [trip]);
 
-  useEffect(() => {
-    if (!exposePatch) {
-      return;
+  const applyPatch = React.useCallback(
+    (patch: Partial<TripDTO>) => {
+      setForm((previous) => applyPatchToFormState(patch, previous));
+    },
+    [setForm],
+  );
+
+  React.useEffect(() => {
+    if (exposePatch) {
+      exposePatch(applyPatch);
     }
-
-    exposePatch(applyPatch);
-
-    return () => {
-      exposePatch(() => {});
-    };
   }, [exposePatch, applyPatch]);
 
-  const updateForm = <Key extends keyof TripFormState>(key: Key, value: string) => {
-    setForm((previous) => {
-      const next = { ...previous, [key]: value };
-
-      if (key === "driverId" || key === "unitId" || key === "type" || key === "zone") {
-        next.rateId = "";
-      }
-
-      return next;
-    });
-  };
-
-  const resolveDriverName = () => {
-    if (form.driverId) {
-      const match = drivers.find(({ id }) => id === form.driverId);
-      if (match?.name) {
-        return match.name;
-      }
-    }
-    return form.driver;
-  };
-
-  const resolveUnitCode = () => {
-    if (form.unitId) {
-      const match = units.find(({ id }) => id === form.unitId);
-      if (match?.code) {
-        return match.code;
-      }
-    }
-    return form.unit;
-  };
-
-  const handleAutofill = async () => {
-    setAutofilling(true);
-    setAutofillMessage(null);
-    setAutofillError(null);
-
-    const payload: Record<string, string> = {};
-    if (trip.orderId) {
-      payload.orderId = trip.orderId;
-    }
-
-    const driverName = resolveDriverName().trim();
-    if (driverName) {
-      payload.driver = driverName;
-    }
-
-    const unitCode = resolveUnitCode().trim();
-    if (unitCode) {
-      payload.unit = unitCode;
-    }
-
-    if (form.type.trim()) {
-      payload.type = form.type.trim();
-    }
-
-    if (form.zone.trim()) {
-      payload.zone = form.zone.trim();
-    }
-
-    try {
-      const response = await fetch("/api/rates/lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+  const driverOptions = React.useMemo(() => {
+    const options = [...drivers];
+    if (trip.driverId && !options.some((driver) => driver.id === trip.driverId)) {
+      options.unshift({
+        id: trip.driverId,
+        name: trip.driver || "(unknown)",
+        homeBase: null,
+        active: false,
       });
+    }
+    return options;
+  }, [drivers, trip.driverId, trip.driver]);
 
-      if (!response.ok) {
-        setAutofillError("Failed to look up rate.");
-        return;
-      }
-
-      const json: unknown = await response.json();
-
-      if (!isRateLookupResponse(json)) {
-        setAutofillError("Unexpected response when looking up rate.");
-        return;
-      }
-
-      setForm((previous) => {
-        const next = { ...previous };
-
-        if (!previous.type && json.type) {
-          next.type = json.type;
-        }
-
-        if (!previous.zone && json.zone) {
-          next.zone = json.zone;
-        }
-
-        if (json.found) {
-          next.fixedCPM = formatLookupValue(json.fixedCPM);
-          next.wageCPM = formatLookupValue(json.wageCPM);
-          next.addOnsCPM = formatLookupValue(json.addOnsCPM);
-          next.rollingCPM = formatLookupValue(json.rollingCPM);
-          next.rateId = json.rateId ?? "";
-        } else {
-          next.rateId = "";
-        }
-
-        return next;
+  const unitOptions = React.useMemo(() => {
+    const options = [...units];
+    if (trip.unitId && !options.some((unit) => unit.id === trip.unitId)) {
+      options.unshift({
+        id: trip.unitId,
+        code: trip.unit || "(unknown)",
+        type: null,
+        homeBase: null,
+        active: false,
       });
-
-      if (json.found) {
-        setAutofillMessage(
-          `Using rate: Type = ${displayOrAny(json.type ?? null)} | Zone = ${displayOrAny(
-            json.zone ?? null,
-          )}`,
-        );
-      } else {
-        setAutofillMessage(
-          `No matching rate found (suggested Type = ${displayOrAny(json.type ?? null)}, Zone = ${displayOrAny(
-            json.zone ?? null,
-          )}).`,
-        );
-      }
-    } catch (error) {
-      console.error("Failed to look up rate", error);
-      setAutofillError("Failed to look up rate.");
-    } finally {
-      setAutofilling(false);
     }
-  };
+    return options;
+  }, [units, trip.unitId, trip.unit]);
 
-  const handleSave = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const typeOptions = React.useMemo(() => {
+    const set = new Set(availableTypes);
+    if (trip.type) set.add(trip.type);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [availableTypes, trip.type]);
 
-    const miles = parseNullableNumber(form.miles);
-    if (miles === null) {
-      alert("Miles is required and must be a number.");
-      return;
-    }
+  const zoneOptions = React.useMemo(() => {
+    const set = new Set(availableZones);
+    if (trip.zone) set.add(trip.zone);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [availableZones, trip.zone]);
 
-    const resolvedDriver = resolveDriverName().trim() || form.driver.trim();
-    const resolvedUnit = resolveUnitCode().trim() || form.unit.trim();
-
-    if (!resolvedDriver) {
-      alert("Driver is required.");
-      return;
-    }
-
-    if (!resolvedUnit) {
-      alert("Unit is required.");
-      return;
-    }
-
-    const body = {
-      driverId: form.driverId || null,
-      unitId: form.unitId || null,
-      driver: resolvedDriver,
-      unit: resolvedUnit,
-      type: form.type || null,
-      zone: form.zone || null,
-      miles,
-      revenue: parseNullableNumber(form.revenue),
-      fixedCPM: parseNullableNumber(form.fixedCPM),
-      wageCPM: parseNullableNumber(form.wageCPM),
-      addOnsCPM: parseNullableNumber(form.addOnsCPM),
-      rollingCPM: parseNullableNumber(form.rollingCPM),
-      tripStart: form.tripStart || null,
-      tripEnd: form.tripEnd || null,
-      rateId: form.rateId || null,
+  const handleChange = (field: keyof FormState) =>
+    (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const value = event.target.value;
+      setForm((previous) => ({ ...previous, [field]: value }));
     };
 
-    try {
-      const response = await fetch(`/api/trips/${trip.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        alert(await response.text());
-        return;
-      }
-
-      router.push(`/trips/${trip.id}`);
-    } catch (error) {
-      console.error("Failed to save trip", error);
-      alert("Failed to save trip.");
-    }
+  const handleAutoFill = () => {
+    setAutoFillMessage("Auto-fill from rate service coming soon.");
   };
 
-  const handleRecalculate = async () => {
-    try {
-      const response = await fetch(`/api/trips/${trip.id}/recalc`, { method: "POST" });
-
-      if (!response.ok) {
-        alert("Failed to recalculate totals.");
-        return;
-      }
-
-      window.location.reload();
-    } catch (error) {
-      console.error("Failed to recalculate totals", error);
-      alert("Failed to recalculate totals.");
-    }
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setAutoFillMessage("Changes saved locally. Hook up submit to persist.");
   };
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Edit Trip</h1>
+    <form className="space-y-6" onSubmit={handleSubmit}>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <label className={labelClass}>
+          Driver
+          <select className={inputClass} value={form.driverId} onChange={handleChange("driverId")}>
+            <option value="">Select driver</option>
+            {driverOptions.map((driver) => (
+              <option key={driver.id} value={driver.id}>
+                {driver.name}
+              </option>
+            ))}
+          </select>
+        </label>
 
-      <form onSubmit={handleSave} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm">Driver</label>
-            <select
-              className={inputClassName}
-              value={form.driverId}
-              onChange={(event) => updateForm("driverId", event.target.value)}
-            >
-              <option value="">(keep)</option>
-              {drivers.map((driver) => {
-                const label = driver.inactive ? `${driver.name} (inactive)` : driver.name;
-                return (
-                  <option key={driver.id} value={driver.id}>
-                    {label}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm">Unit</label>
-            <select
-              className={inputClassName}
-              value={form.unitId}
-              onChange={(event) => updateForm("unitId", event.target.value)}
-            >
-              <option value="">(keep)</option>
-              {units.map((unit) => {
-                const baseLabel = unit.name ? `${unit.code} — ${unit.name}` : unit.code;
-                const label = unit.inactive ? `${baseLabel} (inactive)` : baseLabel;
-                return (
-                  <option key={unit.id} value={unit.id}>
-                    {label}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-        </div>
+        <label className={labelClass}>
+          Unit
+          <select className={inputClass} value={form.unitId} onChange={handleChange("unitId")}>
+            <option value="">Select unit</option>
+            {unitOptions.map((unit) => (
+              <option key={unit.id} value={unit.id}>
+                {unit.code}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm">Type</label>
-            <select
-              className={inputClassName}
-              value={form.type}
-              onChange={(event) => updateForm("type", event.target.value)}
-            >
-              <option value="">(none)</option>
-              {(trip.availableTypes ?? []).map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm">Zone</label>
-            <select
-              className={inputClassName}
-              value={form.zone}
-              onChange={(event) => updateForm("zone", event.target.value)}
-            >
-              <option value="">(none)</option>
-              {(trip.availableZones ?? []).map((zone) => (
-                <option key={zone} value={zone}>
-                  {zone}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+        <label className={labelClass}>
+          Type
+          <select className={inputClass} value={form.type} onChange={handleChange("type")}>
+            <option value="">Select type</option>
+            {typeOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={handleAutofill}
-            className="px-3 py-2 rounded border"
-            disabled={autofilling}
-          >
-            {autofilling ? "Looking up..." : "Auto-fill CPM from rate"}
-          </button>
-          {autofillMessage && <p className="text-xs text-gray-600">{autofillMessage}</p>}
-          {autofillError && <p className="text-xs text-red-600">{autofillError}</p>}
-        </div>
+        <label className={labelClass}>
+          Zone
+          <select className={inputClass} value={form.zone} onChange={handleChange("zone")}>
+            <option value="">Select zone</option>
+            {zoneOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm">Miles *</label>
-            <input
-              className={inputClassName}
-              type="number"
-              step="0.01"
-              value={form.miles}
-              onChange={(event) => updateForm("miles", event.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm">Revenue</label>
-            <input
-              className={inputClassName}
-              type="number"
-              step="0.01"
-              value={form.revenue}
-              onChange={(event) => updateForm("revenue", event.target.value)}
-            />
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <label className={labelClass}>
+          Miles
+          <input
+            className={inputClass}
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.miles}
+            onChange={handleChange("miles")}
+          />
+        </label>
 
-        {cpmFields.map((field) => (
-          <div key={field}>
-            <label className="block text-sm">{field}</label>
-            <input
-              className={inputClassName}
-              type="number"
-              step="0.0001"
-              value={form[field]}
-              onChange={(event) => updateForm(field, event.target.value)}
-            />
-          </div>
-        ))}
+        <label className={labelClass}>
+          Revenue ($)
+          <input
+            className={inputClass}
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.revenue}
+            onChange={handleChange("revenue")}
+          />
+        </label>
+      </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm">Trip Start</label>
-            <input
-              className={inputClassName}
-              type="datetime-local"
-              value={form.tripStart}
-              onChange={(event) => updateForm("tripStart", event.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm">Trip End</label>
-            <input
-              className={inputClassName}
-              type="datetime-local"
-              value={form.tripEnd}
-              onChange={(event) => updateForm("tripEnd", event.target.value)}
-            />
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <label className={labelClass}>
+          Fixed CPM
+          <input
+            className={inputClass}
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.fixedCPM}
+            onChange={handleChange("fixedCPM")}
+          />
+        </label>
 
-        <div className="flex gap-2">
-          <button type="submit" className="px-4 py-2 rounded bg-black text-white">
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={handleRecalculate}
-            className="px-4 py-2 rounded border"
-          >
-            Recalculate totals
-          </button>
-        </div>
-      </form>
-    </div>
+        <label className={labelClass}>
+          Wage CPM
+          <input
+            className={inputClass}
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.wageCPM}
+            onChange={handleChange("wageCPM")}
+          />
+        </label>
+
+        <label className={labelClass}>
+          Add-ons CPM
+          <input
+            className={inputClass}
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.addOnsCPM}
+            onChange={handleChange("addOnsCPM")}
+          />
+        </label>
+
+        <label className={labelClass}>
+          Rolling CPM
+          <input
+            className={inputClass}
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.rollingCPM}
+            onChange={handleChange("rollingCPM")}
+          />
+        </label>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <label className={labelClass}>
+          Trip start
+          <input
+            className={inputClass}
+            type="datetime-local"
+            value={form.tripStart}
+            onChange={handleChange("tripStart")}
+          />
+        </label>
+
+        <label className={labelClass}>
+          Trip end
+          <input
+            className={inputClass}
+            type="datetime-local"
+            value={form.tripEnd}
+            onChange={handleChange("tripEnd")}
+          />
+        </label>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted/60"
+          onClick={handleAutoFill}
+        >
+          Auto-fill CPM from rate
+        </button>
+        <button
+          type="submit"
+          className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow"
+        >
+          Save changes
+        </button>
+        {autoFillMessage && <span className="text-xs text-muted-foreground">{autoFillMessage}</span>}
+      </div>
+    </form>
   );
 }

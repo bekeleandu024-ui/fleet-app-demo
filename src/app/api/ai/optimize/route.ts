@@ -1,56 +1,79 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 export const runtime = "nodejs";
 
-type Body = {
-  trip: {
-    miles: number | null;
-    revenue: number | null;
-    fixedCPM: number | null;
-    wageCPM: number | null;
-    addOnsCPM: number | null;
-    rollingCPM: number | null;
-    targetMargin?: number;
-  };
-  benchmark?: { revenueCPM?: number; totalCPM?: number; breakevenCPM?: number };
+const bodySchema = z.object({
+  miles: z.number().nullable().optional(),
+  revenue: z.number().nullable().optional(),
+  fixedCPM: z.number().nullable().optional(),
+  wageCPM: z.number().nullable().optional(),
+  addOnsCPM: z.number().nullable().optional(),
+  rollingCPM: z.number().nullable().optional(),
+  targetMargin: z.number().nullable().optional(),
+});
+
+type Body = z.infer<typeof bodySchema>;
+
+type OptimizePayload = {
+  breakevenCPM: number;
+  targetMarginPct: number;
+  targetCPM: number;
+  suggestedRevenue: number | null;
+  marginNowPct: number | null;
+  notes: string[];
 };
 
-export async function POST(req: Request) {
-  const { trip, benchmark }: Body = await req.json();
+const toFixed = (value: number, digits: number) => Number(value.toFixed(digits));
 
-  const miles = trip.miles ?? 0;
-  const breakevenCPM =
-    (trip.fixedCPM ?? 0) + (trip.wageCPM ?? 0) + (trip.addOnsCPM ?? 0) + (trip.rollingCPM ?? 0);
-  const targetMargin = trip.targetMargin ?? 0.18;
-  const targetCPM = breakevenCPM / (1 - targetMargin);
-  const suggestedRevenue = miles > 0 ? Number((targetCPM * miles).toFixed(2)) : null;
+export async function POST(request: Request) {
+  const json = await request.json().catch(() => null);
+  const parsed = bodySchema.safeParse(json);
 
-  const currentRevenueCPM = miles > 0 && trip.revenue != null ? trip.revenue / miles : null;
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  }
+
+  const body: Body = parsed.data;
+
+  const miles = body.miles ?? 0;
+  const revenue = body.revenue ?? 0;
+  const fixedCPM = body.fixedCPM ?? 0;
+  const wageCPM = body.wageCPM ?? 0;
+  const addOnsCPM = body.addOnsCPM ?? 0;
+  const rollingCPM = body.rollingCPM ?? 0;
+  const targetMargin = body.targetMargin ?? 0.18;
+
+  const breakevenCPM = fixedCPM + wageCPM + addOnsCPM + rollingCPM;
+  const targetCPM = targetMargin >= 1 ? breakevenCPM : breakevenCPM / Math.max(1 - targetMargin, 0.01);
+  const suggestedRevenue = miles > 0 ? toFixed(targetCPM * miles, 2) : null;
+
+  const currentRevenueCPM = miles > 0 && revenue > 0 ? revenue / miles : null;
   const marginNow =
-    currentRevenueCPM != null && breakevenCPM > 0 ? 1 - breakevenCPM / currentRevenueCPM : null;
+    currentRevenueCPM != null && currentRevenueCPM > 0 ? 1 - breakevenCPM / currentRevenueCPM : null;
 
-  const actions: string[] = [];
-  if (suggestedRevenue != null && (trip.revenue ?? 0) < suggestedRevenue)
-    actions.push(
-      `Increase revenue to $${suggestedRevenue.toLocaleString()} to target ${Math.round(
-        targetMargin * 100,
-      )}% margin.`,
-    );
-  if ((trip.rollingCPM ?? 0) > 0.12)
-    actions.push("Lower rollingCPM (fuel/ops) by optimizing route or idling.");
-  if (
-    benchmark?.totalCPM != null &&
-    benchmark.totalCPM > 0 &&
-    (trip.addOnsCPM ?? 0) > benchmark.totalCPM * 0.2
-  )
-    actions.push("Review accessorials; they are high vs benchmark.");
+  const notes: string[] = [];
+  if (suggestedRevenue != null && suggestedRevenue > revenue) {
+    notes.push(`Increase revenue to ${formatCurrency(suggestedRevenue)} to hit ${Math.round(targetMargin * 100)}% margin.`);
+  }
+  if (rollingCPM > 0.12) {
+    notes.push("Rolling CPM is high; review fuel and ops spend.");
+  }
+  if (marginNow != null && marginNow < targetMargin) {
+    notes.push("Current margin is below target.");
+  }
 
-  return NextResponse.json({
-    breakevenCPM,
-    targetMarginPct: targetMargin * 100,
-    targetCPM: Number(targetCPM.toFixed(2)),
+  const payload: OptimizePayload = {
+    breakevenCPM: toFixed(breakevenCPM, 2),
+    targetMarginPct: toFixed(targetMargin * 100, 1),
+    targetCPM: toFixed(targetCPM, 2),
     suggestedRevenue,
-    marginNowPct: marginNow != null ? Number((marginNow * 100).toFixed(1)) : null,
-    notes: actions,
-  });
+    marginNowPct: marginNow != null ? toFixed(marginNow * 100, 1) : null,
+    notes,
+  };
+
+  return NextResponse.json(payload);
 }
+
+const formatCurrency = (value: number) =>
+  `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

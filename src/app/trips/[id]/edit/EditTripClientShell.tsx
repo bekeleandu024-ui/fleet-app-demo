@@ -1,43 +1,75 @@
 "use client";
 
 import * as React from "react";
-import type { TripDTO } from "./types";
 import CostInsights from "./CostInsights";
 import EditForm from "./ui-edit-form";
 import AiOptimizerPanel from "./AiOptimizerPanel";
+import type {
+  TripDTO,
+  DriverLite,
+  UnitLite,
+  SimilarTripSummary,
+  OptimizerBenchmarks,
+} from "./types";
 
-type DriverOption = { id: string; name: string; inactive?: boolean };
-type UnitOption = { id: string; code: string; name: string | null; inactive?: boolean };
-type SimilarTrip = {
-  miles: number | null;
-  revenue: number | null;
-  fixedCPM: number | null;
-  wageCPM: number | null;
-  addOnsCPM: number | null;
-  rollingCPM: number | null;
-  totalCPM: number | null;
-  totalCost: number | null;
-  profit: number | null;
-  marginPct: number | null;
-  createdAt?: string | null;
-};
+const gridClass =
+  "grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)]";
+
+const cardClass = "rounded-xl border border-border bg-card/60 p-4";
+
+const formCardClass = "rounded-xl border border-border bg-card/60 p-6";
 
 type Props = {
   trip: TripDTO;
-  drivers: DriverOption[];
-  units: UnitOption[];
-  recentSimilar: SimilarTrip[];
+  drivers: DriverLite[];
+  units: UnitLite[];
+  availableTypes: string[];
+  availableZones: string[];
+  recentSimilar: SimilarTripSummary[];
+};
+
+type PatchFn = (patch: Partial<TripDTO>) => void;
+
+const computeBenchmarks = (recentSimilar: SimilarTripSummary[]): OptimizerBenchmarks | undefined => {
+  if (!recentSimilar.length) return undefined;
+
+  const validMiles = recentSimilar.filter((item) => (item.miles ?? 0) > 0);
+  const revenueCPM = validMiles.length
+    ? validMiles.reduce((sum, trip) => sum + (trip.revenue ?? 0) / (trip.miles ?? 1), 0) / validMiles.length
+    : null;
+
+  const totalCPM =
+    recentSimilar.reduce((sum, trip) => sum + (trip.totalCPM ?? 0), 0) / recentSimilar.length;
+
+  const breakevenCPM =
+    recentSimilar.reduce(
+      (sum, trip) =>
+        sum +
+        (trip.fixedCPM ?? 0) +
+        (trip.wageCPM ?? 0) +
+        (trip.addOnsCPM ?? 0) +
+        (trip.rollingCPM ?? 0),
+      0,
+    ) / recentSimilar.length;
+
+  return {
+    revenueCPM: revenueCPM != null && Number.isFinite(revenueCPM) ? revenueCPM : undefined,
+    totalCPM: Number.isFinite(totalCPM) ? totalCPM : undefined,
+    breakevenCPM: Number.isFinite(breakevenCPM) ? breakevenCPM : undefined,
+  };
 };
 
 export default function EditTripClientShell({
   trip,
   drivers,
   units,
+  availableTypes,
+  availableZones,
   recentSimilar,
 }: Props) {
-  const patchFnRef = React.useRef<(patch: Partial<TripDTO>) => void>();
+  const patchFnRef = React.useRef<PatchFn | null>(null);
 
-  const registerPatch = React.useCallback((fn: (patch: Partial<TripDTO>) => void) => {
+  const registerPatch = React.useCallback((fn: PatchFn) => {
     patchFnRef.current = fn;
   }, []);
 
@@ -45,45 +77,26 @@ export default function EditTripClientShell({
     patchFnRef.current?.(patch);
   }, []);
 
-  const bench = React.useMemo(() => {
-    if (!recentSimilar.length) return undefined;
-
-    const revenueCPM =
-      recentSimilar.reduce(
-        (sum: number, tripItem) =>
-          sum + (Number(tripItem.revenue ?? 0) / Math.max(1, Number(tripItem.miles ?? 0))),
-        0,
-      ) / recentSimilar.length;
-
-    const totalCPM =
-      recentSimilar.reduce((sum: number, tripItem) => sum + Number(tripItem.totalCPM ?? 0), 0) /
-      recentSimilar.length;
-
-    const breakevenCPM =
-      recentSimilar.reduce(
-        (sum: number, tripItem) =>
-          sum +
-          (Number(tripItem.fixedCPM ?? 0) +
-            Number(tripItem.wageCPM ?? 0) +
-            Number(tripItem.addOnsCPM ?? 0) +
-            Number(tripItem.rollingCPM ?? 0)),
-        0,
-      ) / recentSimilar.length;
-
-    return { revenueCPM, totalCPM, breakevenCPM };
-  }, [recentSimilar]);
+  const bench = React.useMemo(() => computeBenchmarks(recentSimilar), [recentSimilar]);
 
   return (
-    <div className="grid gap-6 md:grid-cols-3">
-      <section className="md:col-span-1 rounded-xl border border-border bg-card/60 p-4">
+    <div className={gridClass}>
+      <section className={cardClass}>
         <CostInsights trip={trip} recentSimilar={recentSimilar} />
       </section>
 
-      <section className="md:col-span-1 md:col-start-2 md:col-end-3 rounded-xl border border-border bg-card/60 p-6">
-        <EditForm trip={trip} drivers={drivers} units={units} exposePatch={registerPatch} />
+      <section className={formCardClass}>
+        <EditForm
+          trip={trip}
+          drivers={drivers}
+          units={units}
+          availableTypes={availableTypes}
+          availableZones={availableZones}
+          exposePatch={registerPatch}
+        />
       </section>
 
-      <section className="md:col-span-1 rounded-xl border border-border bg-card/60 p-4">
+      <section className={cardClass}>
         <AiOptimizerPanel trip={trip} bench={bench} onApply={applyPatchToForm} />
       </section>
     </div>
