@@ -1,14 +1,8 @@
-import sharp, { type Sharp } from "sharp";
-
-export type PreprocessOptions = {
-  mimeType: string;
-};
+import sharp from "sharp";
 
 export type PreprocessResult = {
   buffer: Buffer;
-  width: number;
-  height: number;
-  dataUrl: string;
+  meta: { width: number; height: number };
 };
 
 function shouldUpscale(width?: number, height?: number) {
@@ -17,57 +11,75 @@ function shouldUpscale(width?: number, height?: number) {
   return longest < 1700;
 }
 
-async function deskew(image: Sharp, metadata: Awaited<ReturnType<Sharp["metadata"]>>) {
-  const orientation = metadata.orientation;
-  if (orientation === 6) {
-    return image.rotate(90);
+export async function deskew(input: Buffer): Promise<Buffer> {
+  try {
+    const image = sharp(input, { failOnError: false });
+    const metadata = await image.metadata();
+    const orientation = metadata.orientation;
+
+    let angle = 0;
+    if (orientation === 6) angle = 90;
+    else if (orientation === 8) angle = -90;
+    else if (orientation === 3) angle = 180;
+
+    if (angle !== 0) {
+      return await image.rotate(angle).toBuffer();
+    }
+  } catch (error) {
+    console.warn("deskew failed, falling back to original buffer", error);
   }
-  if (orientation === 8) {
-    return image.rotate(-90);
-  }
-  if (orientation === 3) {
-    return image.rotate(180);
-  }
-  return image;
+
+  return Buffer.isBuffer(input) ? input : Buffer.from(input);
 }
 
-export async function preprocessInput(buffer: Buffer, options: PreprocessOptions): Promise<PreprocessResult> {
-  const mime = options.mimeType;
-  let pipeline: Sharp;
-  if (mime === "application/pdf") {
-    pipeline = sharp(buffer, { density: 260, page: 0 });
-  } else {
-    pipeline = sharp(buffer);
+export async function preprocessImage(
+  input: Buffer | Uint8Array,
+  mime: string,
+): Promise<PreprocessResult> {
+  let workingBuffer = Buffer.isBuffer(input) ? input : Buffer.from(input);
+
+  try {
+    if (mime === "application/pdf") {
+      const pdfImage = sharp(workingBuffer, { density: 300, page: 0, failOnError: false });
+      const rendered = await pdfImage.png().toBuffer();
+      workingBuffer = rendered;
+    }
+  } catch (error) {
+    console.warn("PDF rasterization failed, using original buffer", error);
   }
 
-  const metadata = await pipeline.metadata();
+  let metadata = await sharp(workingBuffer, { failOnError: false }).metadata();
+
   if (metadata.pages && metadata.pages > 1) {
     throw new Error("Only single-page documents are supported");
   }
 
-  const resized = shouldUpscale(metadata.width, metadata.height)
-    ? pipeline.resize({
-        width: metadata.width ? Math.round(metadata.width * 1.6) : undefined,
-        height: metadata.height ? Math.round(metadata.height * 1.6) : undefined,
-        kernel: sharp.kernel.lanczos3,
-      })
-    : pipeline;
+  if (shouldUpscale(metadata.width, metadata.height)) {
+    const width = metadata.width ? Math.round(metadata.width * 1.6) : undefined;
+    const height = metadata.height ? Math.round(metadata.height * 1.6) : undefined;
+    workingBuffer = await sharp(workingBuffer, { failOnError: false })
+      .resize({ width, height, kernel: sharp.kernel.lanczos3 })
+      .toBuffer();
+    metadata = await sharp(workingBuffer, { failOnError: false }).metadata();
+  }
 
-  const adjusted = await deskew(resized, metadata)
-    .greyscale()
+  const deskewed = await deskew(workingBuffer);
+
+  let img = sharp(deskewed, { failOnError: false });
+  img = img
+    .grayscale()
     .normalize()
-    .median(1)
-    .linear(1.15, -8)
-    .sharpen({ sigma: 1 })
-    .gamma()
-    .threshold(185)
-    .toColorspace("b-w");
+    .linear(1.1, -10)
+    .threshold(180, { grayscale: true })
+    .removeAlpha();
 
-  const processedBuffer = await adjusted.png({ compressionLevel: 9 }).toBuffer();
-  const finalMeta = await sharp(processedBuffer).metadata();
-  const width = finalMeta.width ?? metadata.width ?? 0;
-  const height = finalMeta.height ?? metadata.height ?? 0;
-  const dataUrl = `data:image/png;base64,${processedBuffer.toString("base64")}`;
+  const { data, info } = await img.toBuffer({ resolveWithObject: true });
 
-  return { buffer: processedBuffer, width, height, dataUrl };
+  return {
+    buffer: data,
+    meta: {
+      width: info.width ?? metadata.width ?? 0,
+      height: info.height ?? metadata.height ?? 0,
+    },
+  };
 }
