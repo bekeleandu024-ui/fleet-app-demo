@@ -25,7 +25,7 @@ export default async function BookTripPage() {
       orderBy: { code: "asc" },
       select: { id: true, code: true, type: true, homeBase: true },
     }),
-    prisma.rate.findFirst({ orderBy: { createdAt: "asc" } }),
+    prisma.rate.findFirst(),
   ]);
 
   const costTemplate = referenceRate
