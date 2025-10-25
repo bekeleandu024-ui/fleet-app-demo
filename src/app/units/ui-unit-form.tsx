@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 type UnitFormValues = {
   code: string;
+  name: string;
   type: string;
   homeBase: string;
   active: boolean;
@@ -15,6 +16,7 @@ type UnitFormProps = {
   unitId?: string;
   initialValues?: {
     code: string;
+    name?: string | null;
     type?: string | null;
     homeBase?: string | null;
     active: boolean;
@@ -32,6 +34,7 @@ export default function UnitForm({ mode, unitId, initialValues }: UnitFormProps)
   const router = useRouter();
   const [values, setValues] = useState<UnitFormValues>({
     code: initialValues?.code ?? "",
+    name: initialValues?.name ?? "",
     type: initialValues?.type ?? "",
     homeBase: initialValues?.homeBase ?? "",
     active: initialValues?.active ?? true,
@@ -96,6 +99,7 @@ export default function UnitForm({ mode, unitId, initialValues }: UnitFormProps)
     event.preventDefault();
     const payload = {
       code: values.code,
+      name: values.name.trim(),
       type: values.type.trim() ? values.type.trim() : undefined,
       homeBase: values.homeBase.trim() ? values.homeBase.trim() : undefined,
       active: values.active,
@@ -138,6 +142,18 @@ export default function UnitForm({ mode, unitId, initialValues }: UnitFormProps)
           required
         />
         {fieldErrors.code && <p className="text-sm text-red-600">{fieldErrors.code}</p>}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium">Name</label>
+        <input
+          className={inputClass}
+          value={values.name}
+          onChange={(event) => handleChange("name", event.target.value)}
+          placeholder="e.g. Mainline Tractor"
+          required
+        />
+        {fieldErrors.name && <p className="text-sm text-red-600">{fieldErrors.name}</p>}
       </div>
 
       <div>

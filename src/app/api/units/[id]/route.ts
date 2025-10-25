@@ -22,6 +22,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       where: { id: params.id },
       data: {
         ...(data.code !== undefined ? { code: data.code } : {}),
+        ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.type !== undefined ? { type: data.type ?? null } : {}),
         ...(data.homeBase !== undefined
           ? { homeBase: data.homeBase ?? null }

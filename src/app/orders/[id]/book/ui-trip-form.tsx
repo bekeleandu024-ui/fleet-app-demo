@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-type Opt = { id: string; name?: string; code?: string };
+type Opt = { id: string; name?: string | null; code?: string | null };
 
 type Props = {
   orderId: string;
@@ -156,26 +156,39 @@ export default function TripForm({ orderId, drivers, units, types, zones }: Prop
       };
 
       const matchUnit = (value: string) => {
-        const cleaned = value
-          .toLowerCase()
-          .replace(/\s+/g, "")
-          .replace(/[^a-z0-9]/g, "");
-        if (!cleaned) return null;
+        const normalized = value.toLowerCase();
+        const compact = normalized.replace(/\s+/g, "").replace(/[^a-z0-9]/g, "");
+        if (!compact) return null;
+
+        const byCodeExact = units.find((u) =>
+          (u.code ?? "")
+            .toLowerCase()
+            .replace(/\s+/g, "")
+            .replace(/[^a-z0-9]/g, "") === compact
+        );
+        if (byCodeExact) return byCodeExact;
+
+        const byCodePartial = units.find((u) =>
+          (u.code ?? "")
+            .toLowerCase()
+            .replace(/\s+/g, "")
+            .replace(/[^a-z0-9]/g, "")
+            .includes(compact)
+        );
+        if (byCodePartial) return byCodePartial;
+
+        const tokens = normalized
+          .replace(/[^a-z0-9\s]/g, " ")
+          .split(/\s+/)
+          .filter(Boolean);
+        if (!tokens.length) return null;
+
         return (
-          units.find((u) =>
-            (u.code ?? "")
-              .toLowerCase()
-              .replace(/\s+/g, "")
-              .replace(/[^a-z0-9]/g, "") === cleaned
-          ) ||
-          units.find((u) =>
-            (u.code ?? "")
-              .toLowerCase()
-              .replace(/\s+/g, "")
-              .replace(/[^a-z0-9]/g, "")
-              .includes(cleaned)
-          ) ||
-          null
+          units.find((u) => {
+            const nameLower = (u.name ?? "").toLowerCase();
+            if (!nameLower) return false;
+            return tokens.every((token) => nameLower.includes(token));
+          }) || null
         );
       };
 
@@ -766,7 +779,12 @@ export default function TripForm({ orderId, drivers, units, types, zones }: Prop
           <label className="block text-sm">Unit *</label>
           <select className={input} value={f.unitId} onChange={e=>set("unitId", e.target.value)}>
             <option value="">Select unit</option>
-            {units.map(u => <option key={u.id} value={u.id}>{u.code}</option>)}
+            {units.map(u => (
+              <option key={u.id} value={u.id}>
+                {u.code}
+                {u.name ? ` — ${u.name}` : ""}
+              </option>
+            ))}
           </select>
         </div>
       </div>

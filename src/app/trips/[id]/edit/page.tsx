@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { stripDecimalsDeep } from "@/lib/serialize";
+import { toNum } from "@/lib/serialize";
 import prisma from "@/server/prisma";
 
 import EditTripClientShell from "./EditTripClientShell";
@@ -8,9 +8,9 @@ import { mapTripToDTO } from "./map";
 import type { TripDTO } from "./types";
 
 interface PageParams {
-  params: Promise<{
+  params: {
     id: string;
-  }>;
+  };
 }
 
 function filterNullish(values: Array<string | null>): string[] {
@@ -28,11 +28,11 @@ type SimilarTrip = {
   totalCost: number | null;
   profit: number | null;
   marginPct: number | null;
-  createdAt: string | Date;
+  createdAt: string | null;
 };
 
 export default async function EditTrip({ params }: PageParams) {
-  const { id } = await params;
+  const { id } = params;
 
   const tripRaw = await prisma.trip.findUnique({
     where: { id },
@@ -54,7 +54,7 @@ export default async function EditTrip({ params }: PageParams) {
     prisma.unit.findMany({
       where: { active: true },
       orderBy: { code: "asc" },
-      select: { id: true, code: true },
+      select: { id: true, code: true, name: true },
     }),
     prisma.rate.findMany({
       distinct: ["type"],
@@ -66,8 +66,8 @@ export default async function EditTrip({ params }: PageParams) {
     }),
   ]);
 
-  const drivers = stripDecimalsDeep(driversRaw);
-  const units = stripDecimalsDeep(unitsRaw);
+  const drivers = driversRaw.map((driver) => ({ id: driver.id, name: driver.name }));
+  const units = unitsRaw.map((unit) => ({ id: unit.id, code: unit.code, name: unit.name }));
 
   const types = filterNullish(typeRecords.map(({ type }) => type)).sort((a, b) => a.localeCompare(b));
   const zones = filterNullish(zoneRecords.map(({ zone }) => zone)).sort((a, b) => a.localeCompare(b));
@@ -106,7 +106,19 @@ export default async function EditTrip({ params }: PageParams) {
     },
   });
 
-  const recentSimilar = stripDecimalsDeep(recentSimilarRaw) as SimilarTrip[];
+  const recentSimilar: SimilarTrip[] = recentSimilarRaw.map((tripItem) => ({
+    miles: toNum(tripItem.miles),
+    revenue: toNum(tripItem.revenue),
+    fixedCPM: toNum(tripItem.fixedCPM),
+    wageCPM: toNum(tripItem.wageCPM),
+    addOnsCPM: toNum(tripItem.addOnsCPM),
+    rollingCPM: toNum(tripItem.rollingCPM),
+    totalCPM: toNum(tripItem.totalCPM),
+    totalCost: toNum(tripItem.totalCost),
+    profit: toNum(tripItem.profit),
+    marginPct: toNum(tripItem.marginPct),
+    createdAt: tripItem.createdAt ? tripItem.createdAt.toISOString() : null,
+  }));
 
   const tripWithOptions: TripDTO = {
     ...trip,

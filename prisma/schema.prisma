@@ -101,6 +101,7 @@ model Driver {
 model Unit {
   id       String  @id @default(cuid())
   code     String  @unique // e.g. "COM-012"
+  name     String
   type     String? // Tractor/Box/etc.
   homeBase String?
   active   Boolean @default(true)

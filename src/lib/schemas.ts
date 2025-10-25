@@ -49,6 +49,7 @@ export const DriverUpdate = DriverCreate.partial();
 export const UnitCreate = z
   .object({
     code: requiredTrimmedString("Code is required"),
+    name: requiredTrimmedString("Name is required"),
     type: optionalTrimmedString(),
     homeBase: optionalTrimmedString(),
     active: z.coerce.boolean().optional().default(true),

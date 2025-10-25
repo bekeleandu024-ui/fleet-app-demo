@@ -7,7 +7,7 @@ import EditForm from "./ui-edit-form";
 import AiOptimizerPanel from "./AiOptimizerPanel";
 
 type DriverOption = { id: string; name: string };
-type UnitOption = { id: string; code: string };
+type UnitOption = { id: string; code: string; name: string | null };
 type SimilarTrip = {
   miles: number | null;
   revenue: number | null;
@@ -19,7 +19,7 @@ type SimilarTrip = {
   totalCost: number | null;
   profit: number | null;
   marginPct: number | null;
-  createdAt?: string | Date;
+  createdAt?: string | null;
 };
 
 type Props = {

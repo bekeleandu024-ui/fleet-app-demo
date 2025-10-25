@@ -23,6 +23,7 @@ export default async function EditUnitPage({ params }: PageProps) {
         unitId={unit.id}
         initialValues={{
           code: unit.code,
+          name: unit.name,
           type: unit.type,
           homeBase: unit.homeBase,
           active: unit.active,
