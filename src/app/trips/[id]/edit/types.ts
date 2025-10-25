@@ -27,4 +27,7 @@ export type TripDTO = {
   rateId: string | null;
   createdAt: string;
   updatedAt: string;
+
+  availableTypes?: string[];
+  availableZones?: string[];
 };

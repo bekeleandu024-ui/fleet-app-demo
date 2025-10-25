@@ -1,14 +1,11 @@
-import type { MutableRefObject } from "react";
 import { notFound } from "next/navigation";
 
 import { stripDecimalsDeep } from "@/lib/serialize";
 import prisma from "@/server/prisma";
 
-import AiOptimizerPanel from "./AiOptimizerPanel";
-import CostInsights from "./CostInsights";
+import EditTripClientShell from "./EditTripClientShell";
 import { mapTripToDTO } from "./map";
 import type { TripDTO } from "./types";
-import EditForm from "./ui-edit-form";
 
 interface PageParams {
   params: {
@@ -109,59 +106,20 @@ export default async function EditTrip({ params }: PageParams) {
 
   const recentSimilar = stripDecimalsDeep(recentSimilarRaw) as SimilarTrip[];
 
-  const patchRef = {
-    current: undefined,
-  } as MutableRefObject<((patch: Partial<TripDTO>) => void) | undefined>;
-
-  const bench = recentSimilar.length
-    ? {
-        revenueCPM:
-          recentSimilar.reduce(
-            (sum, x) => sum + (x.revenue ?? 0) / Math.max(1, x.miles ?? 0),
-            0,
-          ) / recentSimilar.length,
-        totalCPM:
-          recentSimilar.reduce((sum, x) => sum + (x.totalCPM ?? 0), 0) /
-          recentSimilar.length,
-        breakevenCPM:
-          recentSimilar.reduce(
-            (sum, x) =>
-              sum +
-              ((x.fixedCPM ?? 0) +
-                (x.wageCPM ?? 0) +
-                (x.addOnsCPM ?? 0) +
-                (x.rollingCPM ?? 0)),
-            0,
-          ) / recentSimilar.length,
-      }
-    : undefined;
+  const tripWithOptions: TripDTO = {
+    ...trip,
+    availableTypes: types,
+    availableZones: zones,
+  };
 
   return (
     <main className="max-w-5xl mx-auto p-6 space-y-6">
-      <div className="grid gap-6 md:grid-cols-3">
-        <section className="md:col-span-1 rounded-xl border border-border bg-card/60 p-4">
-          <CostInsights trip={trip} recentSimilar={recentSimilar} />
-        </section>
-
-        <section className="md:col-span-1 md:col-start-2 md:col-end-3 rounded-xl border border-border bg-card/60 p-6">
-          <EditForm
-            trip={trip}
-            drivers={drivers}
-            units={units}
-            types={types}
-            zones={zones}
-            externalPatchRef={patchRef}
-          />
-        </section>
-
-        <section className="md:col-span-1 rounded-xl border border-border bg-card/60 p-4">
-          <AiOptimizerPanel
-            trip={trip}
-            bench={bench}
-            onApply={(patch) => patchRef.current?.(patch)}
-          />
-        </section>
-      </div>
+      <EditTripClientShell
+        trip={tripWithOptions}
+        drivers={drivers}
+        units={units}
+        recentSimilar={recentSimilar}
+      />
     </main>
   );
 }
