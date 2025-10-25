@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const emptyToUndefined = (value: unknown) => {
+export const emptyToUndefined = (value: unknown) => {
   if (value == null) return undefined;
   if (typeof value === "string") {
     const trimmed = value.trim();
@@ -9,42 +9,156 @@ const emptyToUndefined = (value: unknown) => {
   return value;
 };
 
-const requiredTrimmedString = (message: string) =>
+export const requiredTrimmedString = (message: string) =>
   z
-    .string({ required_error: message })
+    .string({ required_error: message, invalid_type_error: message })
     .trim()
     .min(1, message);
+
+export const optionalDate = (label: string) =>
+  z
+    .preprocess(emptyToUndefined, z.coerce.date({ invalid_type_error: `${label} must be a valid date` }))
+    .optional();
+
+export const nonNegNumber = (label: string) =>
+  z
+    .preprocess(
+      emptyToUndefined,
+      z.coerce.number({ invalid_type_error: `${label} must be a number` }).min(0, `${label} must be ≥ 0`)
+    );
 
 const optionalTrimmedString = () =>
   z
     .preprocess(emptyToUndefined, z.string().trim().min(1))
     .optional();
 
-const optionalNonNegative = (field: string) =>
-  z
-    .preprocess(
-      emptyToUndefined,
-      z.coerce
-        .number({ invalid_type_error: `${field} must be a number` })
-        .min(0, `${field} must be ≥ 0`)
-    )
-    .optional();
+const optionalNonNegative = (field: string) => nonNegNumber(field).optional();
 
 const optionalDateTime = (field: string) =>
   z
     .preprocess(emptyToUndefined, z.coerce.date({ invalid_type_error: `${field} must be a valid ISO datetime` }))
     .optional();
 
-export const DriverCreate = z
+const inactiveReasonSchema = z.preprocess(
+  emptyToUndefined,
+  z.string().trim().min(1, "Inactive reason is required when status is inactive")
+);
+
+const driverShape = z
   .object({
     name: requiredTrimmedString("Name is required"),
-    homeBase: optionalTrimmedString(),
-    license: optionalTrimmedString(),
-    active: z.coerce.boolean().optional().default(true),
+    phone: z
+      .preprocess(
+        emptyToUndefined,
+        z
+          .string({ invalid_type_error: "Phone must be a string" })
+          .trim()
+          .regex(/^(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})$/, "Phone must be a valid North American number")
+      )
+      .optional(),
+    email: z.preprocess(emptyToUndefined, z.string().trim().email("Email must be valid")).optional(),
+    homeBase: z.preprocess(emptyToUndefined, z.string().trim()).optional(),
+    license: z.object({
+      number: requiredTrimmedString("License number is required"),
+      jurisdiction: requiredTrimmedString("License jurisdiction is required"),
+      class: requiredTrimmedString("License class is required"),
+      endorsements: z.array(z.string().trim().min(1)).default([]),
+      expiresAt: optionalDate("License expiry"),
+    }),
+    compliance: z
+      .object({
+        medicalExpiresAt: optionalDate("Medical expiry"),
+        drugTestDate: optionalDate("Drug test date"),
+        mvrDate: optionalDate("MVR date"),
+      })
+      .partial()
+      .optional(),
+    pay: z
+      .object({
+        type: z.enum(["Hourly", "CPM"]).nullable().optional(),
+        rate: nonNegNumber("Rate").optional(),
+        cpm: nonNegNumber("CPM").optional(),
+        deductionsProfileId: z
+          .preprocess(emptyToUndefined, z.string().trim().min(1))
+          .nullable()
+          .optional(),
+      })
+      .optional(),
+    status: z.enum(["Active", "Inactive"]),
+    inactiveReason: inactiveReasonSchema.optional(),
+    inactiveAt: optionalDate("Inactive at"),
   })
   .strip();
 
-export const DriverUpdate = DriverCreate.partial();
+const applyDriverRefinements = <T extends z.ZodTypeAny>(schema: T) =>
+  schema.superRefine((data, ctx) => {
+    const status = (data as z.infer<typeof driverShape>).status;
+    const license = (data as z.infer<typeof driverShape>).license;
+    const pay = (data as z.infer<typeof driverShape>).pay;
+    const inactiveReason = (data as z.infer<typeof driverShape>).inactiveReason;
+    const inactiveAt = (data as z.infer<typeof driverShape>).inactiveAt;
+
+    if (status === "Active") {
+      const expiresAt = license?.expiresAt ?? null;
+      if (!expiresAt) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Active drivers require a license expiry date",
+          path: ["license", "expiresAt"],
+        });
+      } else {
+        const now = new Date();
+        if (expiresAt.getTime() <= now.getTime()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Active drivers must have a future license expiry",
+            path: ["license", "expiresAt"],
+          });
+        }
+      }
+    }
+
+    if (status === "Inactive") {
+      if (!inactiveReason) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Inactive drivers must include a reason",
+          path: ["inactiveReason"],
+        });
+      }
+      if (!inactiveAt) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Inactive drivers must include a date",
+          path: ["inactiveAt"],
+        });
+      }
+    }
+
+    const payType = pay?.type ?? null;
+    if (payType === "Hourly") {
+      if (pay?.rate == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Hourly drivers require an hourly rate",
+          path: ["pay", "rate"],
+        });
+      }
+    }
+    if (payType === "CPM") {
+      if (pay?.cpm == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "CPM drivers require a cents-per-mile rate",
+          path: ["pay", "cpm"],
+        });
+      }
+    }
+  });
+
+export const DriverCreate = applyDriverRefinements(driverShape);
+
+export const DriverUpdate = applyDriverRefinements(driverShape.partial());
 
 export const UnitCreate = z
   .object({
@@ -126,4 +240,3 @@ export const TripStatusUpdate = z
     status: TripStatus,
   })
   .strip();
-
