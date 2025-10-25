@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export type RateSettingItem = {
   id: string;
@@ -33,6 +33,18 @@ export default function RateSettingsTable({ items }: Props) {
     }))
   );
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    setRows(
+      items.map((item) => ({
+        ...item,
+        editing: false,
+        draft: null,
+      }))
+    );
+  }, [items]);
 
   const lastUpdated = useMemo(() => {
     if (!rows.length) return null;
@@ -139,10 +151,62 @@ export default function RateSettingsTable({ items }: Props) {
     }
   }
 
+  const filteredRows = useMemo(() => {
+    const value = query.trim().toLowerCase();
+    if (!value) return rows;
+    return rows.filter((row) => {
+      return [row.rateKey, row.category, row.unit, row.note ?? ""].some((field) =>
+        field.toLowerCase().includes(value)
+      );
+    });
+  }, [rows, query]);
+
+  async function deleteRow(id: string) {
+    const target = rows.find((row) => row.id === id);
+    if (!target) return;
+    if (!confirm(`Delete rate entry ${target.rateKey} (${target.category})?`)) return;
+
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/rate-settings/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const error = await res.json().catch(() => null);
+        throw new Error(error?.error ?? "Failed to delete rate entry");
+      }
+      setRows((prev) => prev.filter((row) => row.id !== id));
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "Failed to delete rate entry");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
-    <div className="overflow-x-auto border rounded-lg">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+    <div className="overflow-hidden border rounded-lg">
+      <div className="flex flex-col gap-3 border-b bg-gray-50 px-4 py-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className="text-sm font-medium text-gray-800">Operational Rate Entries</div>
+          <div className="text-xs text-gray-500">
+            Showing {filteredRows.length} of {rows.length} entries
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 text-xs text-gray-500 md:items-end">
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search by key, category, unit, or note"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-black focus:outline-none md:w-72"
+          />
+          {formattedLastUpdated && (
+            <span>Last updated {formattedLastUpdated}</span>
+          )}
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-100">
           <tr>
             <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Key</th>
             <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Category</th>
@@ -153,8 +217,15 @@ export default function RateSettingsTable({ items }: Props) {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200 bg-white">
-          {rows.map((row) => (
-            <tr key={row.id} className={row.editing ? "bg-amber-50" : undefined}>
+          {filteredRows.length === 0 ? (
+            <tr>
+              <td className="px-4 py-6 text-center text-sm text-gray-500" colSpan={6}>
+                No rate entries match your search.
+              </td>
+            </tr>
+          ) : (
+            filteredRows.map((row) => (
+              <tr key={row.id} className={row.editing ? "bg-amber-50" : undefined}>
                 <td className="px-4 py-2 align-top">
                   {row.editing ? (
                     <input
@@ -192,8 +263,10 @@ export default function RateSettingsTable({ items }: Props) {
                         updateDraft(row.id, (current) => ({ ...current, value: event.target.value }))
                       }
                     />
-                  ) : (
+                  ) : Number.isFinite(row.value) ? (
                     row.value.toFixed(2)
+                  ) : (
+                    "—"
                   )}
                 </td>
                 <td className="px-4 py-2 align-top">
@@ -245,24 +318,30 @@ export default function RateSettingsTable({ items }: Props) {
                       </button>
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      className="rounded border px-3 py-1 text-sm"
-                      onClick={() => startEditing(row.id)}
-                    >
-                      Edit
-                    </button>
+                    <div className="flex justify-end gap-2 text-sm">
+                      <button
+                        type="button"
+                        className="rounded border px-3 py-1"
+                        onClick={() => startEditing(row.id)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded border border-red-500 px-3 py-1 text-red-600"
+                        onClick={() => deleteRow(row.id)}
+                        disabled={deletingId === row.id}
+                      >
+                        {deletingId === row.id ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
                   )}
                 </td>
               </tr>
-            ))}
+            ))
+          )}
         </tbody>
       </table>
-      {formattedLastUpdated && (
-        <div className="border-t px-4 py-2 text-right text-xs text-gray-500">
-          Last updated {formattedLastUpdated}
-        </div>
-      )}
     </div>
   );
 }
