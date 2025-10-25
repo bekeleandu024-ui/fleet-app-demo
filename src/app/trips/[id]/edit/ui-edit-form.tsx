@@ -1,8 +1,10 @@
 "use client";
 
-import type { Prisma, Trip } from "@prisma/client";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import type { MutableRefObject } from "react";
+
+import type { TripDTO } from "./types";
 
 type DriverOption = { id: string; name: string };
 type UnitOption = { id: string; code: string };
@@ -30,7 +32,7 @@ type CpmField = "fixedCPM" | "wageCPM" | "addOnsCPM" | "rollingCPM";
 const cpmFields: CpmField[] = ["fixedCPM", "wageCPM", "addOnsCPM", "rollingCPM"];
 const inputClassName = "w-full border rounded p-2";
 
-const decimalToString = (value: Prisma.Decimal | null | undefined): string =>
+const nullableNumberToString = (value: number | null | undefined): string =>
   value == null ? "" : value.toString();
 
 const dateToLocalInputValue = (value: Date | string | null | undefined): string => {
@@ -105,14 +107,22 @@ const parseNullableNumber = (value: string): number | null => {
 };
 
 interface EditFormProps {
-  trip: Trip;
+  trip: TripDTO;
   drivers: DriverOption[];
   units: UnitOption[];
   types: string[];
   zones: string[];
+  externalPatchRef?: MutableRefObject<((patch: Partial<TripDTO>) => void) | undefined>;
 }
 
-export default function EditForm({ trip, drivers, units, types, zones }: EditFormProps) {
+export default function EditForm({
+  trip,
+  drivers,
+  units,
+  types,
+  zones,
+  externalPatchRef,
+}: EditFormProps) {
   const router = useRouter();
   const [form, setForm] = useState<TripFormState>({
     driverId: trip.driverId ?? "",
@@ -121,12 +131,12 @@ export default function EditForm({ trip, drivers, units, types, zones }: EditFor
     unit: trip.unit ?? "",
     type: trip.type ?? "",
     zone: trip.zone ?? "",
-    miles: decimalToString(trip.miles),
-    revenue: decimalToString(trip.revenue),
-    fixedCPM: decimalToString(trip.fixedCPM),
-    wageCPM: decimalToString(trip.wageCPM),
-    addOnsCPM: decimalToString(trip.addOnsCPM),
-    rollingCPM: decimalToString(trip.rollingCPM),
+    miles: nullableNumberToString(trip.miles),
+    revenue: nullableNumberToString(trip.revenue),
+    fixedCPM: nullableNumberToString(trip.fixedCPM),
+    wageCPM: nullableNumberToString(trip.wageCPM),
+    addOnsCPM: nullableNumberToString(trip.addOnsCPM),
+    rollingCPM: nullableNumberToString(trip.rollingCPM),
     tripStart: dateToLocalInputValue(trip.tripStart),
     tripEnd: dateToLocalInputValue(trip.tripEnd),
     rateId: trip.rateId ?? "",
@@ -134,6 +144,41 @@ export default function EditForm({ trip, drivers, units, types, zones }: EditFor
   const [autofilling, setAutofilling] = useState(false);
   const [autofillMessage, setAutofillMessage] = useState<string | null>(null);
   const [autofillError, setAutofillError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!externalPatchRef) {
+      return;
+    }
+
+    externalPatchRef.current = (patch) => {
+      setForm((previous) => {
+        const next = { ...previous };
+
+        const assignNumeric = (
+          key: keyof TripFormState,
+          value: number | null | undefined,
+        ) => {
+          if (value === undefined) {
+            return;
+          }
+          next[key] = value == null ? "" : String(value);
+        };
+
+        assignNumeric("revenue", patch.revenue);
+        assignNumeric("miles", patch.miles);
+        assignNumeric("fixedCPM", patch.fixedCPM);
+        assignNumeric("wageCPM", patch.wageCPM);
+        assignNumeric("addOnsCPM", patch.addOnsCPM);
+        assignNumeric("rollingCPM", patch.rollingCPM);
+
+        return next;
+      });
+    };
+
+    return () => {
+      externalPatchRef.current = undefined;
+    };
+  }, [externalPatchRef]);
 
   const updateForm = <Key extends keyof TripFormState>(key: Key, value: string) => {
     setForm((previous) => {
@@ -308,7 +353,7 @@ export default function EditForm({ trip, drivers, units, types, zones }: EditFor
   };
 
   return (
-    <main className="max-w-xl mx-auto p-6 space-y-4">
+    <div className="space-y-4">
       <h1 className="text-2xl font-bold">Edit Trip</h1>
 
       <form onSubmit={handleSave} className="space-y-4">
@@ -461,6 +506,6 @@ export default function EditForm({ trip, drivers, units, types, zones }: EditFor
           </button>
         </div>
       </form>
-    </main>
+    </div>
   );
 }
