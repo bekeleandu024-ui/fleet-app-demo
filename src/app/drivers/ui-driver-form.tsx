@@ -26,7 +26,20 @@ type Issue = {
   message: string;
 };
 
-const inputClass = "w-full rounded border px-3 py-2";
+const inputClass = [
+  "flex h-10 w-full rounded-md border border-border bg-card/60",
+  "px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground",
+  "transition-colors ring-offset-background focus-visible:outline-none focus-visible:ring-2",
+  "focus-visible:ring-primary/70 focus-visible:ring-offset-2",
+  "disabled:cursor-not-allowed disabled:opacity-50",
+].join(" ");
+
+const checkboxClass = [
+  "h-4 w-4 rounded border-border bg-background text-primary",
+  "transition-colors focus-visible:outline-none focus-visible:ring-2",
+  "focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+  "disabled:cursor-not-allowed disabled:opacity-50",
+].join(" ");
 
 export default function DriverForm({ mode, driverId, initialValues }: DriverFormProps) {
   const router = useRouter();
@@ -130,7 +143,7 @@ export default function DriverForm({ mode, driverId, initialValues }: DriverForm
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium">Name</label>
+        <label className="block text-sm font-medium text-foreground">Name</label>
         <input
           className={inputClass}
           value={values.name}
@@ -141,7 +154,7 @@ export default function DriverForm({ mode, driverId, initialValues }: DriverForm
       </div>
 
       <div>
-        <label className="block text-sm font-medium">Home base</label>
+        <label className="block text-sm font-medium text-foreground">Home base</label>
         <input
           className={inputClass}
           value={values.homeBase}
@@ -154,14 +167,14 @@ export default function DriverForm({ mode, driverId, initialValues }: DriverForm
       </div>
 
       <div>
-        <label className="block text-sm font-medium">License number</label>
+        <label className="block text-sm font-medium text-foreground">License number</label>
         <input
           className={inputClass}
           value={values.license}
           onChange={(event) => handleChange("license", event.target.value)}
           placeholder="e.g. ON-1234-5678"
         />
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-muted-foreground">
           Capture the current CDL/driver's license so dispatch can verify compliance quickly.
         </p>
         {fieldErrors.license && (
@@ -169,11 +182,12 @@ export default function DriverForm({ mode, driverId, initialValues }: DriverForm
         )}
       </div>
 
-      <label className="inline-flex items-center space-x-2">
+      <label className="inline-flex items-center gap-2 text-sm text-foreground transition-colors">
         <input
           type="checkbox"
           checked={values.active}
           onChange={(event) => handleChange("active", event.target.checked)}
+          className={checkboxClass}
         />
         <span>Active</span>
       </label>
@@ -184,7 +198,7 @@ export default function DriverForm({ mode, driverId, initialValues }: DriverForm
         <button
           type="submit"
           disabled={loading}
-          className="rounded bg-black px-4 py-2 text-white disabled:opacity-60"
+          className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 ring-offset-background disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? "Saving..." : submitLabel}
         </button>
@@ -194,7 +208,7 @@ export default function DriverForm({ mode, driverId, initialValues }: DriverForm
             type="button"
             onClick={onDelete}
             disabled={loading}
-            className="rounded border border-red-500 px-4 py-2 text-red-600 disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-red-500 px-4 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 ring-offset-background disabled:cursor-not-allowed disabled:opacity-60"
           >
             Delete
           </button>
