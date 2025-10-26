@@ -146,6 +146,8 @@ export function parseOcrToOrder(rawText: string): ParsedOrder {
   return result;
 }
 
+export const parseOrderFromText = parseOcrToOrder;
+
 type WindowParts = {
   start?: string;
   end?: string;

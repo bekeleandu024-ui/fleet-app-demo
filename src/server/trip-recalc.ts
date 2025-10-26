@@ -1,29 +1,8 @@
-import prisma from "@/server/prisma";
-import { calcCost } from "@/lib/costing";
+import prisma from "@/lib/prisma";
 
-function toNumber(value: any) {
-  return value == null ? null : Number(value);
-}
-
-async function findRate(type?: string | null, zone?: string | null) {
-  let rate = await prisma.rate.findFirst({
-    where: { type: type ?? undefined, zone: zone ?? undefined },
-  });
-
-  if (!rate && type) {
-    rate = await prisma.rate.findFirst({ where: { type, zone: null } });
-  }
-  if (!rate && zone) {
-    rate = await prisma.rate.findFirst({ where: { zone, type: null } });
-  }
-  if (!rate) {
-    rate = await prisma.rate.findFirst({ where: { type: null, zone: null } });
-  }
-
-  return rate;
-}
-
-export type TripRecalcTotals = {
+export type TripTotals = {
+  miles: number;
+  revenue: number | null;
   fixedCPM: number | null;
   wageCPM: number | null;
   addOnsCPM: number | null;
@@ -34,74 +13,60 @@ export type TripRecalcTotals = {
   marginPct: number | null;
 };
 
-export type TripRecalcResult = {
-  trip: {
-    id: string;
-    driver: string;
-    unit: string;
-    type: string | null;
-    zone: string | null;
-    status: string;
-    miles: number;
-    revenue: number | null;
-  };
-  before: TripRecalcTotals;
-  after: TripRecalcTotals;
-  rateApplied: {
-    id: string;
-    type: string | null;
-    zone: string | null;
-  } | null;
-};
-
-export async function recalcTripTotals(tripId: string): Promise<TripRecalcResult | null> {
-  const trip = await prisma.trip.findUnique({ where: { id: tripId } });
-  if (!trip) return null;
-
-  const before: TripRecalcTotals = {
-    fixedCPM: toNumber(trip.fixedCPM),
-    wageCPM: toNumber(trip.wageCPM),
-    addOnsCPM: toNumber(trip.addOnsCPM),
-    rollingCPM: toNumber(trip.rollingCPM),
-    totalCPM: toNumber(trip.totalCPM),
-    totalCost: toNumber(trip.totalCost),
-    profit: toNumber(trip.profit),
-    marginPct: toNumber(trip.marginPct),
-  };
-
-  let fixedCPM = before.fixedCPM;
-  let wageCPM = before.wageCPM;
-  let addOnsCPM = before.addOnsCPM;
-  let rollingCPM = before.rollingCPM;
-  let rateApplied: { id: string; type: string | null; zone: string | null } | null = null;
-
-  if (fixedCPM == null || wageCPM == null || addOnsCPM == null || rollingCPM == null) {
-    const rate = await findRate(trip.type, trip.zone);
-    if (rate) {
-      rateApplied = { id: rate.id, type: rate.type, zone: rate.zone };
-      if (fixedCPM == null) fixedCPM = Number(rate.fixedCPM);
-      if (wageCPM == null) wageCPM = Number(rate.wageCPM);
-      if (addOnsCPM == null) addOnsCPM = Number(rate.addOnsCPM);
-      if (rollingCPM == null) rollingCPM = Number(rate.rollingCPM);
-    }
-  }
-
-  const totals = calcCost({
-    miles: Number(trip.miles),
-    revenue: trip.revenue == null ? null : Number(trip.revenue),
-    fixedCPM: fixedCPM == null ? null : fixedCPM,
-    wageCPM: wageCPM == null ? null : wageCPM,
-    addOnsCPM: addOnsCPM == null ? null : addOnsCPM,
-    rollingCPM: rollingCPM == null ? null : rollingCPM,
+export async function recalcTripTotals(tripId: string) {
+  const trip = await prisma.trip.findUnique({
+    where: { id: tripId },
+    include: { rateRef: true },
   });
 
-  await prisma.trip.update({
-    where: { id: trip.id },
+  if (!trip) {
+    throw new Error("Trip not found");
+  }
+
+  const before: TripTotals = {
+    miles: Number(trip.miles),
+    revenue: trip.revenue ? Number(trip.revenue) : null,
+    fixedCPM: trip.fixedCPM ? Number(trip.fixedCPM) : null,
+    wageCPM: trip.wageCPM ? Number(trip.wageCPM) : null,
+    addOnsCPM: trip.addOnsCPM ? Number(trip.addOnsCPM) : null,
+    rollingCPM: trip.rollingCPM ? Number(trip.rollingCPM) : null,
+    totalCPM: trip.totalCPM ? Number(trip.totalCPM) : null,
+    totalCost: trip.totalCost ? Number(trip.totalCost) : null,
+    profit: trip.profit ? Number(trip.profit) : null,
+    marginPct: trip.marginPct ? Number(trip.marginPct) : null,
+  };
+
+  let { fixedCPM, wageCPM, addOnsCPM, rollingCPM } = before;
+  let rateApplied: { id: string; label: string } | undefined;
+
+  if ((!fixedCPM || !wageCPM || !addOnsCPM || !rollingCPM) && trip.rateRef) {
+    const rate = trip.rateRef;
+    rateApplied = {
+      id: rate.id,
+      label: [rate.type, rate.zone].filter(Boolean).join(" • ") || "Rate",
+    };
+    fixedCPM = fixedCPM ?? Number(rate.fixedCPM);
+    wageCPM = wageCPM ?? Number(rate.wageCPM);
+    addOnsCPM = addOnsCPM ?? Number(rate.addOnsCPM);
+    rollingCPM = rollingCPM ?? Number(rate.rollingCPM);
+  }
+
+  const totals = sumTotals({
+    miles: before.miles,
+    revenue: before.revenue,
+    fixedCPM,
+    wageCPM,
+    addOnsCPM,
+    rollingCPM,
+  });
+
+  const updated = await prisma.trip.update({
+    where: { id: tripId },
     data: {
-      fixedCPM,
-      wageCPM,
-      addOnsCPM,
-      rollingCPM,
+      fixedCPM: totals.fixedCPM,
+      wageCPM: totals.wageCPM,
+      addOnsCPM: totals.addOnsCPM,
+      rollingCPM: totals.rollingCPM,
       totalCPM: totals.totalCPM,
       totalCost: totals.totalCost,
       profit: totals.profit,
@@ -109,15 +74,17 @@ export async function recalcTripTotals(tripId: string): Promise<TripRecalcResult
     },
   });
 
-  const after: TripRecalcTotals = {
-    fixedCPM,
-    wageCPM,
-    addOnsCPM,
-    rollingCPM,
-    totalCPM: totals.totalCPM,
-    totalCost: totals.totalCost,
-    profit: totals.profit,
-    marginPct: totals.marginPct,
+  const after: TripTotals = {
+    miles: Number(updated.miles),
+    revenue: updated.revenue ? Number(updated.revenue) : null,
+    fixedCPM: updated.fixedCPM ? Number(updated.fixedCPM) : null,
+    wageCPM: updated.wageCPM ? Number(updated.wageCPM) : null,
+    addOnsCPM: updated.addOnsCPM ? Number(updated.addOnsCPM) : null,
+    rollingCPM: updated.rollingCPM ? Number(updated.rollingCPM) : null,
+    totalCPM: updated.totalCPM ? Number(updated.totalCPM) : null,
+    totalCost: updated.totalCost ? Number(updated.totalCost) : null,
+    profit: updated.profit ? Number(updated.profit) : null,
+    marginPct: updated.marginPct ? Number(updated.marginPct) : null,
   };
 
   return {
@@ -125,14 +92,50 @@ export async function recalcTripTotals(tripId: string): Promise<TripRecalcResult
       id: trip.id,
       driver: trip.driver,
       unit: trip.unit,
-      type: trip.type ?? null,
-      zone: trip.zone ?? null,
+      type: trip.type,
+      zone: trip.zone,
       status: trip.status,
-      miles: Number(trip.miles),
-      revenue: trip.revenue == null ? null : Number(trip.revenue),
     },
     before,
     after,
     rateApplied,
+  };
+}
+
+function sumTotals({
+  miles,
+  revenue,
+  fixedCPM,
+  wageCPM,
+  addOnsCPM,
+  rollingCPM,
+}: {
+  miles: number;
+  revenue: number | null;
+  fixedCPM: number | null | undefined;
+  wageCPM: number | null | undefined;
+  addOnsCPM: number | null | undefined;
+  rollingCPM: number | null | undefined;
+}): TripTotals {
+  const safeFixed = fixedCPM ?? 0;
+  const safeWage = wageCPM ?? 0;
+  const safeAddOns = addOnsCPM ?? 0;
+  const safeRolling = rollingCPM ?? 0;
+  const totalCPM = safeFixed + safeWage + safeAddOns + safeRolling;
+  const totalCost = Number.isFinite(miles) ? (miles * totalCPM) / 100 : null;
+  const profit = revenue != null && totalCost != null ? revenue - totalCost : null;
+  const marginPct = revenue && revenue !== 0 && profit != null ? (profit / revenue) * 100 : null;
+
+  return {
+    miles,
+    revenue,
+    fixedCPM: fixedCPM ?? null,
+    wageCPM: wageCPM ?? null,
+    addOnsCPM: addOnsCPM ?? null,
+    rollingCPM: rollingCPM ?? null,
+    totalCPM,
+    totalCost,
+    profit,
+    marginPct,
   };
 }

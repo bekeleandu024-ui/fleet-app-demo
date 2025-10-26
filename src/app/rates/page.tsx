@@ -1,96 +1,111 @@
-import prisma from "@/server/prisma";
-import Link from "next/link";
-import RateSettingsTable from "./rate-settings-table";
+import prisma from "@/lib/prisma";
 
-export const runtime = "nodejs";
+function formatCurrency(value: number) {
+  return value.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+}
 
 export default async function RatesPage() {
   const [rates, settings] = await Promise.all([
-    prisma.rate.findMany({
-      orderBy: [{ type: "asc" }, { zone: "asc" }],
-    }),
-    prisma.rateSetting.findMany({
-      orderBy: [{ rateKey: "asc" }, { category: "asc" }],
-    }),
+    prisma.rate.findMany({ orderBy: [{ type: "asc" }, { zone: "asc" }] }),
+    prisma.rateSetting.findMany({ orderBy: [{ rateKey: "asc" }, { category: "asc" }] }),
   ]);
 
-  const rateSettingsForClient = settings.map((item) => ({
-    id: item.id,
-    rateKey: item.rateKey,
-    category: item.category,
-    unit: item.unit,
-    note: item.note,
-    value: Number(item.value),
-    updatedAt: item.updatedAt.toISOString(),
+  const safeRates = rates.map(rate => ({
+    ...rate,
+    fixedCPM: Number(rate.fixedCPM),
+    wageCPM: Number(rate.wageCPM),
+    addOnsCPM: Number(rate.addOnsCPM),
+    rollingCPM: Number(rate.rollingCPM),
+    label: [rate.type, rate.zone].filter(Boolean).join(" • "),
+  }));
+
+  const safeSettings = settings.map(setting => ({
+    ...setting,
+    value: Number(setting.value),
   }));
 
   return (
-    <main className="max-w-3xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Rates</h1>
-        <Link href="/rates/new" className="px-3 py-2 rounded-lg border">
-          + New Rate
-        </Link>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-slate-900">Rates</h1>
+        <p className="text-sm text-slate-600">Review cents-per-mile rates and supporting settings.</p>
       </div>
 
-      <section>
-        <h2 className="text-lg font-semibold mb-3">Trip Rate Defaults</h2>
-        {rates.length === 0 ? (
-          <p className="text-gray-600">No trip rates yet. Create your first one.</p>
-        ) : (
-          <ul className="space-y-3">
-            {rates.map((rate) => {
-              const totalCpm =
-                Number(rate.fixedCPM) +
-                Number(rate.wageCPM) +
-                Number(rate.addOnsCPM) +
-                Number(rate.rollingCPM);
-
-              return (
-                <li key={rate.id} className="p-4 rounded-lg border">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="font-semibold">
-                        {rate.type ?? "Uncategorized"}
-                        {rate.zone ? ` — ${rate.zone}` : ""}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Fixed: {rate.fixedCPM.toString()} | Wage: {rate.wageCPM.toString()} | Add-ons: {rate.addOnsCPM.toString()} | Rolling: {rate.rollingCPM.toString()}
-                      </div>
-                    </div>
-                    <div className="text-right space-y-2">
-                      <div className="text-sm text-gray-500">Total CPM</div>
-                      <div className="text-lg font-semibold">{totalCpm.toFixed(2)}</div>
-                      <Link
-                        href={`/rates/${rate.id}/edit`}
-                        className="inline-block px-3 py-2 rounded-lg border text-sm"
-                      >
-                        Edit
-                      </Link>
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
-      <section className="mt-10">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Operational Rate Table</h2>
-          <Link href="/rates/new#rate-setting" className="text-sm text-blue-600">
-            + Add rate entry
-          </Link>
+      <section className="rounded border border-slate-200 bg-white shadow-sm">
+        <header className="border-b border-slate-200 px-4 py-3">
+          <h2 className="text-lg font-semibold text-slate-800">Rate table</h2>
+        </header>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-200 text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-4 py-2 text-left font-medium text-slate-600">Type</th>
+                <th className="px-4 py-2 text-left font-medium text-slate-600">Zone</th>
+                <th className="px-4 py-2 text-right font-medium text-slate-600">Fixed CPM</th>
+                <th className="px-4 py-2 text-right font-medium text-slate-600">Wage CPM</th>
+                <th className="px-4 py-2 text-right font-medium text-slate-600">Add-ons CPM</th>
+                <th className="px-4 py-2 text-right font-medium text-slate-600">Rolling CPM</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 bg-white">
+              {safeRates.map(rate => (
+                <tr key={rate.id}>
+                  <td className="px-4 py-2">{rate.type || "—"}</td>
+                  <td className="px-4 py-2">{rate.zone || "—"}</td>
+                  <td className="px-4 py-2 text-right">{rate.fixedCPM.toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">{rate.wageCPM.toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">{rate.addOnsCPM.toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">{rate.rollingCPM.toFixed(2)}</td>
+                </tr>
+              ))}
+              {safeRates.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-4 text-center text-slate-500">
+                    No rates defined yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-        {rateSettingsForClient.length === 0 ? (
-          <p className="text-gray-600">No rate table entries yet. Use the form above to add them.</p>
-        ) : (
-          <RateSettingsTable
-            items={rateSettingsForClient}
-          />
-        )}
       </section>
-    </main>
+
+      <section className="rounded border border-slate-200 bg-white shadow-sm">
+        <header className="border-b border-slate-200 px-4 py-3">
+          <h2 className="text-lg font-semibold text-slate-800">Rate settings</h2>
+        </header>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-200 text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-4 py-2 text-left font-medium text-slate-600">Rate key</th>
+                <th className="px-4 py-2 text-left font-medium text-slate-600">Category</th>
+                <th className="px-4 py-2 text-right font-medium text-slate-600">Value</th>
+                <th className="px-4 py-2 text-left font-medium text-slate-600">Unit</th>
+                <th className="px-4 py-2 text-left font-medium text-slate-600">Note</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 bg-white">
+              {safeSettings.map(setting => (
+                <tr key={setting.id}>
+                  <td className="px-4 py-2">{setting.rateKey}</td>
+                  <td className="px-4 py-2">{setting.category}</td>
+                  <td className="px-4 py-2 text-right">{formatCurrency(setting.value)}</td>
+                  <td className="px-4 py-2">{setting.unit}</td>
+                  <td className="px-4 py-2 text-slate-600">{setting.note || "—"}</td>
+                </tr>
+              ))}
+              {safeSettings.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-4 text-center text-slate-500">
+                    No settings recorded.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   );
 }

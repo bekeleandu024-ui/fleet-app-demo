@@ -1,55 +1,30 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
-import prisma from "@/src/server/prisma";
-import { UnitCreate } from "@/src/lib/schemas";
+import { z } from "zod";
+import prisma from "@/lib/prisma";
 
-export async function GET() {
-  const units = await prisma.unit.findMany({
-    orderBy: { code: "asc" },
+const unitSchema = z.object({
+  code: z.string().trim().min(1, "Code is required"),
+  type: z.string().trim().optional(),
+  homeBase: z.string().trim().optional(),
+  active: z.boolean().optional().default(true),
+});
+
+export async function POST(request: Request) {
+  const payload = await request.json().catch(() => null);
+  const result = unitSchema.safeParse(payload);
+  if (!result.success) {
+    return NextResponse.json({ error: "Invalid unit", details: result.error.flatten() }, { status: 400 });
+  }
+
+  const data = result.data;
+  const unit = await prisma.unit.create({
+    data: {
+      code: data.code,
+      type: data.type || null,
+      homeBase: data.homeBase || null,
+      active: data.active,
+    },
   });
-  return NextResponse.json(units);
-}
 
-export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({}));
-  const parsed = UnitCreate.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json({ issues: parsed.error.issues }, { status: 400 });
-  }
-
-  const data = parsed.data;
-
-  try {
-    const unit = await prisma.unit.create({
-      data: {
-        code: data.code,
-        type: data.type ?? null,
-        homeBase: data.homeBase ?? null,
-        active: data.active ?? true,
-      },
-    });
-
-    return NextResponse.json({ ok: true, unit });
-  } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      return NextResponse.json(
-        {
-          issues: [
-            {
-              path: ["code"],
-              message: "Unit code must be unique",
-            },
-          ],
-        },
-        { status: 409 }
-      );
-    }
-
-    console.error("Failed to create unit", error);
-    return NextResponse.json({ error: "Failed to create unit" }, { status: 500 });
-  }
+  return NextResponse.json({ ok: true, unit });
 }

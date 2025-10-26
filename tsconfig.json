@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
+    "allowJs": false,
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
@@ -13,18 +13,12 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-
-    "baseUrl": ".",                      // <-- add this
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],                // <-- your alias (good)
-      "@/src/*": ["./src/*"],
-      "chrono-node": ["./src/vendor/chrono-node"],
-      "luxon": ["./src/vendor/luxon"],
-      "react-hook-form": ["./src/vendor/react-hook-form"]
+      "@/*": ["./src/*"]
     },
-
     "plugins": [{ "name": "next" }]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules" /* , ".next" */]   // uncomment ".next" if editor warnings persist
+  "exclude": ["node_modules"]
 }

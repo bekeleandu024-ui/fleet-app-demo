@@ -1,152 +1,94 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { recalcTripTotals } from "@/server/trip-recalc";
+import { recalcTripTotals, type TripTotals } from "@/server/trip-recalc";
 
-const decimalFormatter = new Intl.NumberFormat(undefined, {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-const percentFormatter = new Intl.NumberFormat(undefined, {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
-
-function formatDecimal(value: number | null | undefined) {
-  return value == null ? "—" : decimalFormatter.format(value);
+function formatNumber(value: number | null | undefined, opts: { digits?: number; suffix?: string } = {}) {
+  if (value === null || value === undefined || Number.isNaN(value)) return "—";
+  const digits = opts.digits ?? 2;
+  const formatted = value.toLocaleString("en-US", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+  return opts.suffix ? `${formatted}${opts.suffix}` : formatted;
 }
 
-function formatPercent(value: number | null | undefined) {
-  return value == null ? "—" : `${percentFormatter.format(value * 100)}%`;
+function diffTone(diff: number | null | undefined) {
+  if (diff === null || diff === undefined || Math.abs(diff) < 0.005) return "text-slate-500";
+  return diff > 0 ? "text-emerald-600" : "text-red-600";
 }
 
-function formatDiff(after: number | null, before: number | null, asPercent = false) {
-  if (after == null || before == null) return "—";
-  const delta = after - before;
-  if (Math.abs(delta) < 0.0005) return asPercent ? "0.0%" : "0.00";
-  if (asPercent) {
-    return `${percentFormatter.format(delta * 100)}%`;
-  }
-  return decimalFormatter.format(delta);
-}
-
-function diffTone(after: number | null, before: number | null) {
-  if (after == null || before == null) return "text-gray-500";
-  const delta = after - before;
-  if (Math.abs(delta) < 0.0005) return "text-gray-500";
-  return delta > 0 ? "text-emerald-600" : "text-rose-600";
-}
+const fields: { key: keyof TripTotals; label: string; format?: (value: number | null) => string }[] = [
+  { key: "miles", label: "Miles", format: value => formatNumber(value, { digits: 0 }) },
+  { key: "revenue", label: "Revenue", format: value => formatNumber(value, { digits: 2 }) },
+  { key: "fixedCPM", label: "Fixed CPM", format: value => formatNumber(value, { digits: 2 }) },
+  { key: "wageCPM", label: "Wage CPM", format: value => formatNumber(value, { digits: 2 }) },
+  { key: "addOnsCPM", label: "Add-ons CPM", format: value => formatNumber(value, { digits: 2 }) },
+  { key: "rollingCPM", label: "Rolling CPM", format: value => formatNumber(value, { digits: 2 }) },
+  { key: "totalCPM", label: "Total CPM", format: value => formatNumber(value, { digits: 2 }) },
+  { key: "totalCost", label: "Total cost", format: value => formatNumber(value, { digits: 2 }) },
+  { key: "profit", label: "Profit", format: value => formatNumber(value, { digits: 2 }) },
+  { key: "marginPct", label: "Margin %", format: value => formatNumber(value, { digits: 2, suffix: "%" }) },
+];
 
 export default async function TripRecalcPage({ params }: { params: { id: string } }) {
   const result = await recalcTripTotals(params.id);
-  if (!result) notFound();
-
-  const { trip, before, after, rateApplied } = result;
-  const cpmKeys: (keyof typeof before)[] = ["fixedCPM", "wageCPM", "addOnsCPM", "rollingCPM"];
-  const hadMissingBefore = cpmKeys.some((key) => before[key] == null);
-  const stillMissingAfter = cpmKeys.some((key) => after[key] == null);
-
-  const rateLabelParts = rateApplied
-    ? [rateApplied.type, rateApplied.zone].filter(Boolean)
-    : [];
-  const rateLabel = rateLabelParts.length ? rateLabelParts.join(" • ") : "default";
-
-  const rateMessage = rateApplied
-    ? `Missing CPM values were filled using the ${rateLabel} rate.`
-    : hadMissingBefore && stillMissingAfter
-    ? "No matching rate defaults were found, so CPM values remain blank."
-    : "All CPM values were already set; recalculation used the stored numbers.";
-
-  const metrics: { key: keyof typeof before; label: string; isPercent?: boolean }[] = [
-    { key: "fixedCPM", label: "Fixed CPM" },
-    { key: "wageCPM", label: "Wage CPM" },
-    { key: "addOnsCPM", label: "Add-ons CPM" },
-    { key: "rollingCPM", label: "Rolling CPM" },
-    { key: "totalCPM", label: "Total CPM" },
-    { key: "totalCost", label: "Total Cost" },
-    { key: "profit", label: "Profit" },
-    { key: "marginPct", label: "Margin %", isPercent: true },
-  ];
 
   return (
-    <main className="max-w-3xl mx-auto p-6 space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Recalculated totals</h1>
-          <p className="mt-1 text-sm text-gray-500">Trip {trip.id}</p>
-        </div>
-        <div className="flex gap-2">
-          <Link className="px-3 py-2 rounded border" href={`/trips/${trip.id}`}>
-            View trip
-          </Link>
-          <Link className="px-3 py-2 rounded border" href={`/trips/${trip.id}/edit`}>
-            Edit trip
-          </Link>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-slate-900">Recalculate trip totals</h1>
+        <p className="text-sm text-slate-600">
+          Trip {result.trip.id} • Driver {result.trip.driver} • Unit {result.trip.unit || "—"}
+        </p>
       </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="border rounded p-4">
-          <div className="text-sm text-gray-500">Driver / Unit</div>
-          <div className="font-medium">
-            {trip.driver} • {trip.unit}
-          </div>
-          <div className="mt-3 text-sm text-gray-500">Classification</div>
-          <div className="text-sm">
-            {trip.type ?? "(no type)"} • {trip.zone ?? "(no zone)"}
-          </div>
+      {result.rateApplied ? (
+        <div className="rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+          Missing CPM values were filled using rate <span className="font-medium">{result.rateApplied.label}</span>.
         </div>
-        <div className="border rounded p-4 space-y-3">
-          <div>
-            <div className="text-sm text-gray-500">Miles</div>
-            <div className="font-medium">{formatDecimal(trip.miles)}</div>
-          </div>
-          <div>
-            <div className="text-sm text-gray-500">Revenue</div>
-            <div className="font-medium">{formatDecimal(trip.revenue)}</div>
-          </div>
-          <div>
-            <div className="text-sm text-gray-500">Status</div>
-            <div className="font-medium">{trip.status}</div>
-          </div>
+      ) : (
+        <div className="rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+          CPM values were kept from the original record.
         </div>
-      </div>
-
-      <div className="border rounded p-4">
-        <div className="font-medium">What changed</div>
-        <p className="mt-1 text-sm text-gray-600">{rateMessage}</p>
-      </div>
-
-      <div className="overflow-x-auto border rounded">
-        <table className="min-w-full text-sm divide-y divide-gray-200">
-          <thead className="bg-slate-900 text-white">
+      )}
+      <div className="overflow-x-auto rounded border border-slate-200 bg-white shadow-sm">
+        <table className="min-w-full divide-y divide-slate-200 text-sm">
+          <thead className="bg-slate-50">
             <tr>
-              <th className="px-4 py-2 text-left font-semibold">Metric</th>
-              <th className="px-4 py-2 text-right font-semibold">Before</th>
-              <th className="px-4 py-2 text-right font-semibold">After</th>
-              <th className="px-4 py-2 text-right font-semibold">Δ</th>
+              <th className="px-4 py-2 text-left font-medium text-slate-600">Metric</th>
+              <th className="px-4 py-2 text-right font-medium text-slate-600">Before</th>
+              <th className="px-4 py-2 text-right font-medium text-slate-600">After</th>
+              <th className="px-4 py-2 text-right font-medium text-slate-600">Δ</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
-            {metrics.map(({ key, label, isPercent }) => {
-              const beforeValue = before[key];
-              const afterValue = after[key];
-              const formatter = isPercent ? formatPercent : formatDecimal;
-              const diff = formatDiff(afterValue, beforeValue, Boolean(isPercent));
-              const tone = diffTone(afterValue, beforeValue);
-
+          <tbody className="divide-y divide-slate-200 bg-white">
+            {fields.map(field => {
+              const before = result.before[field.key];
+              const after = result.after[field.key];
+              const format = field.format ?? (value => formatNumber(value, { digits: 2 }));
+              const diff =
+                before != null && after != null
+                  ? Number((after - before).toFixed(4))
+                  : after != null
+                  ? after
+                  : before != null
+                  ? -before
+                  : null;
+              const diffLabel =
+                diff === null || diff === undefined
+                  ? "—"
+                  : field.key === "marginPct"
+                  ? formatNumber(diff, { digits: 2, suffix: "%" })
+                  : formatNumber(diff, { digits: 2 });
               return (
-                <tr key={key} className="transition-colors hover:bg-slate-100">
-                  <td className="px-4 py-2 text-gray-800">{label}</td>
-                  <td className="px-4 py-2 text-right text-gray-600">{formatter(beforeValue)}</td>
-                  <td className="px-4 py-2 text-right font-medium">{formatter(afterValue)}</td>
-                  <td className={`px-4 py-2 text-right font-medium ${tone}`}>{diff}</td>
+                <tr key={field.key}>
+                  <td className="px-4 py-2 text-slate-700">{field.label}</td>
+                  <td className="px-4 py-2 text-right">{format(before)}</td>
+                  <td className="px-4 py-2 text-right">{format(after)}</td>
+                  <td className={`px-4 py-2 text-right font-medium ${diffTone(diff)}`}>{diffLabel}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
-    </main>
+    </div>
   );
 }

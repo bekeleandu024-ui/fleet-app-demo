@@ -1,41 +1,32 @@
 {
   "name": "fleet-app-demo",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
-    "prisma:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
-    "predev": "npm run prisma:migrate",
     "dev": "next dev",
     "build": "next build",
-    "prestart": "npm run prisma:migrate",
     "start": "next start",
-    "lint": "next lint",
-    "preseed": "npm run prisma:migrate",
-    "seed": "node prisma/seed.cjs"
+    "prisma:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
+    "prisma:generate": "prisma generate",
+    "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "autoprefixer": "file:vendor/autoprefixer",
-    "@prisma/client": "^6.17.1",
-    "chrono-node": "file:src/vendor/chrono-node",
-    "luxon": "file:src/vendor/luxon",
-    "next": "15.5.6",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "react-hook-form": "file:src/vendor/react-hook-form",
-    "sharp": "^0.33.5",
+    "@prisma/client": "^5.20.0",
+    "autoprefixer": "^10.4.20",
+    "date-fns": "^3.6.0",
+    "next": "15.0.3",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "tesseract.js": "^5.0.7",
-    "zod": "^3.23.0"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@tailwindcss/forms": "^0.5.9",
-    "@types/node": "file:vendor/@types/node",
-    "@types/react": "file:vendor/@types/react",
-    "eslint": "^9",
-    "eslint-config-next": "15.5.6",
-    "@tailwindcss/postcss": "file:vendor/@tailwindcss/postcss",
-    "postcss": "file:vendor/postcss",
-    "prisma": "^6.17.1",
-    "tailwindcss": "4.1.14",
-    "typescript": "^5"
+    "@types/node": "^20.16.11",
+    "@types/react": "^18.3.11",
+    "postcss": "^8.4.47",
+    "prisma": "^5.20.0",
+    "tailwindcss": "^3.4.16",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3"
   }
 }
