@@ -1,72 +1,114 @@
 import prisma from "@/src/server/prisma";
 
-function formatDate(date: Date | null): string | null {
-  if (!date) return null;
-  return date.toISOString().slice(0, 10);
+type LicenseData = {
+  licenseClass: string | null;
+  licenseNumber: string | null;
+  licenseJurisdiction: string | null;
+  licenseEndorsements: unknown;
+};
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(
+      (entry): entry is string =>
+        typeof entry === "string" && entry.trim().length > 0
+    )
+    .map((entry) => entry.trim());
 }
 
-function getLicenseDisplay(
-  licenseClass: string | null,
-  licenseNumber: string | null,
-  licenseJurisdiction: string | null,
-): string {
+function formatLicense(driver: LicenseData): string {
   const parts: string[] = [];
 
-  if (licenseClass) {
-    parts.push(licenseClass);
+  if (driver.licenseClass) {
+    parts.push(driver.licenseClass);
   }
 
-  if (licenseNumber) {
-    parts.push(licenseNumber);
+  if (driver.licenseNumber) {
+    parts.push(driver.licenseNumber);
   }
 
-  if (licenseJurisdiction) {
-    parts.push(`(${licenseJurisdiction})`);
+  let summary = parts.join(" ");
+
+  if (driver.licenseJurisdiction) {
+    summary = summary
+      ? `${summary} (${driver.licenseJurisdiction})`
+      : `(${driver.licenseJurisdiction})`;
   }
 
-  if (parts.length === 0) {
-    return "—";
+  const endorsements = toStringArray(driver.licenseEndorsements);
+  if (endorsements.length > 0) {
+    summary = summary
+      ? `${summary} • ${endorsements.join(", ")}`
+      : endorsements.join(", ");
   }
 
-  return parts.join(" ");
+  return summary || "—";
 }
 
-function getLicenseExpiry(
-  licenseExpiresAt: Date | null,
-): { label: string; tone: string } {
-  if (!licenseExpiresAt) {
-    return { label: "—", tone: "text-gray-100" };
+function formatDate(date: Date | null | undefined): string {
+  if (!date) return "—";
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function licenseExpiryDisplay(date: Date | null): {
+  text: string;
+  className: string;
+} {
+  if (!date) {
+    return { text: "—", className: "text-gray-400" };
   }
 
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const expiryDate = new Date(
-    licenseExpiresAt.getFullYear(),
-    licenseExpiresAt.getMonth(),
-    licenseExpiresAt.getDate(),
+  const today = new Date();
+  const todayMidnight = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
   );
-  const diffMs = expiryDate.getTime() - today.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const dateMidnight = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate()
+  );
 
-  let tone = "text-gray-100";
+  const diffMs = dateMidnight.getTime() - todayMidnight.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  const text = formatDate(date);
+
   if (diffDays < 0) {
-    tone = "text-red-400";
-  } else if (diffDays <= 30) {
-    tone = "text-yellow-400";
+    return { text, className: "text-rose-400" };
+  }
+
+  if (diffDays <= 30) {
+    return { text, className: "text-amber-400" };
+  }
+
+  return { text, className: "text-gray-100" };
+}
+
+function statusPill(
+  active: boolean | null | undefined
+): { label: string; className: string } {
+  if (active) {
+    return {
+      label: "Active",
+      className:
+        "inline-flex items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-400",
+    };
   }
 
   return {
-    label: formatDate(licenseExpiresAt) ?? "—",
-    tone,
+    label: "Inactive",
+    className:
+      "inline-flex items-center rounded-full border border-rose-500/40 bg-rose-500/10 px-2.5 py-1 text-xs font-medium text-rose-400",
   };
 }
 
-function formatCreatedAt(createdAt: Date): string {
-  return createdAt.toISOString().slice(0, 10);
-}
-
-export default async function DriversPage(): Promise<JSX.Element> {
-  const drivers = await prisma.driver.findMany({
+export default async function DriversPage() {
+  const records = await prisma.driver.findMany({
     orderBy: { name: "asc" },
     select: {
       id: true,
@@ -86,104 +128,99 @@ export default async function DriversPage(): Promise<JSX.Element> {
     },
   });
 
-  const formattedDrivers = drivers.map((driver): {
-    id: string;
-    name: string;
-    homeBase: string;
-    status: { label: string; tone: string };
-    license: string;
-    licenseExpiry: { label: string; tone: string };
-    phone: string;
-    email: string;
-    created: string;
-  } => {
-    const licenseExpiry = getLicenseExpiry(driver.licenseExpiresAt);
-
-    return {
-      id: driver.id,
-      name: driver.name ?? "—",
-      homeBase: driver.homeBase ?? "—",
-      status: driver.active
-        ? { label: "Active", tone: "bg-emerald-500/20 text-emerald-300" }
-        : { label: "Inactive", tone: "bg-rose-500/10 text-rose-300" },
-      license: getLicenseDisplay(
-        driver.licenseClass,
-        driver.licenseNumber,
-        driver.licenseJurisdiction,
-      ),
-      licenseExpiry,
-      phone: driver.phone ?? "—",
-      email: driver.email ?? "—",
-      created: formatCreatedAt(driver.createdAt),
-    };
-  });
-
   return (
     <main className="max-w-6xl mx-auto p-6 space-y-6">
       <h1 className="text-xl font-semibold text-white">Drivers</h1>
+
       <section className="rounded-xl border border-border bg-card/60 p-4 shadow-sm overflow-x-auto">
-        <table className="min-w-full text-sm text-left text-gray-100">
+        <table className="min-w-full table-auto text-left">
           <thead>
-            <tr>
-              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-2 pr-4 whitespace-nowrap">
+            <tr className="border-b border-border/60">
+              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-2 whitespace-nowrap">
                 Driver
               </th>
-              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-2 pr-4 whitespace-nowrap">
+              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-2 whitespace-nowrap">
                 Home base
               </th>
-              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-2 pr-4 whitespace-nowrap">
+              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-2 whitespace-nowrap">
                 Status
               </th>
-              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-2 pr-4 whitespace-nowrap">
+              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-2 whitespace-nowrap">
                 License
               </th>
-              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-2 pr-4 whitespace-nowrap">
+              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-2 whitespace-nowrap">
                 License expiry
               </th>
-              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-2 pr-4 whitespace-nowrap">
+              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-2 whitespace-nowrap">
                 Phone
               </th>
-              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-2 pr-4 whitespace-nowrap">
+              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-2 whitespace-nowrap">
                 Email
               </th>
-              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-2 pr-4 whitespace-nowrap">
+              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-2 whitespace-nowrap">
                 Created
               </th>
             </tr>
           </thead>
+
           <tbody>
-            {formattedDrivers.map((driver) => (
-              <tr key={driver.id} className="border-t border-border/60">
-                <td className="py-2 pr-4 align-top text-sm text-gray-100 whitespace-nowrap">
-                  {driver.name || "—"}
-                </td>
-                <td className="py-2 pr-4 align-top text-sm text-gray-100 whitespace-nowrap">
-                  {driver.homeBase}
-                </td>
-                <td className="py-2 pr-4 align-top text-sm text-gray-100 whitespace-nowrap">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${driver.status.tone}`}
-                  >
-                    {driver.status.label}
-                  </span>
-                </td>
-                <td className="py-2 pr-4 align-top text-sm text-gray-100 whitespace-nowrap">
-                  {driver.license}
-                </td>
-                <td className="py-2 pr-4 align-top text-sm whitespace-nowrap">
-                  <span className={driver.licenseExpiry.tone}>{driver.licenseExpiry.label}</span>
-                </td>
-                <td className="py-2 pr-4 align-top text-sm text-gray-100 whitespace-nowrap">
-                  {driver.phone}
-                </td>
-                <td className="py-2 pr-4 align-top text-sm text-gray-100 whitespace-nowrap">
-                  {driver.email}
-                </td>
-                <td className="py-2 pr-4 align-top text-sm text-gray-100 whitespace-nowrap">
-                  {driver.created}
+            {records.length === 0 ? (
+              <tr>
+                <td
+                  className="py-4 pr-4 align-top text-sm text-gray-100 whitespace-nowrap"
+                  colSpan={8}
+                >
+                  No drivers found.
                 </td>
               </tr>
-            ))}
+            ) : (
+              records.map((driver) => {
+                const pill = statusPill(driver.active);
+                const license = formatLicense(driver);
+                const expiry = licenseExpiryDisplay(driver.licenseExpiresAt);
+
+                return (
+                  <tr
+                    key={driver.id}
+                    className="border-b border-border/40 last:border-0"
+                  >
+                    <td className="py-2 pr-4 align-top text-sm text-gray-100 whitespace-nowrap">
+                      {driver.name ?? "—"}
+                    </td>
+
+                    <td className="py-2 pr-4 align-top text-sm text-gray-100 whitespace-nowrap">
+                      {driver.homeBase ?? "—"}
+                    </td>
+
+                    <td className="py-2 pr-4 align-top text-sm text-gray-100 whitespace-nowrap">
+                      <span className={pill.className}>{pill.label}</span>
+                    </td>
+
+                    <td className="py-2 pr-4 align-top text-sm text-gray-100 whitespace-nowrap">
+                      {license}
+                    </td>
+
+                    <td
+                      className={`py-2 pr-4 align-top text-sm whitespace-nowrap ${expiry.className}`}
+                    >
+                      {expiry.text}
+                    </td>
+
+                    <td className="py-2 pr-4 align-top text-sm text-gray-100 whitespace-nowrap">
+                      {driver.phone ?? "—"}
+                    </td>
+
+                    <td className="py-2 pr-4 align-top text-sm text-gray-100 whitespace-nowrap">
+                      {driver.email ?? "—"}
+                    </td>
+
+                    <td className="py-2 pr-4 align-top text-sm text-gray-100 whitespace-nowrap">
+                      {formatDate(driver.createdAt)}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </section>
