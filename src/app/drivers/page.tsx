@@ -2,6 +2,17 @@ import Link from "next/link";
 
 import prisma from "@/server/prisma";
 
+type DriverSummary = {
+  id: string;
+  name: string;
+  homeBase: string | null;
+  active: boolean;
+  licenseNumber: string | null;
+  licenseJurisdiction: string | null;
+  licenseClass: string | null;
+  licenseExpiresAt: Date | null;
+};
+
 type DriverMetrics = {
   totalTrips: number;
   openTrips: number;
@@ -62,19 +73,20 @@ const ensureMetrics = (map: Map<string, DriverMetrics>, id: string) => {
 };
 
 export default async function Drivers() {
-  const drivers = await prisma.driver.findMany({
+  const driverRecords = await prisma.driver.findMany({
     orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      homeBase: true,
-      active: true,
-      licenseNumber: true,
-      licenseJurisdiction: true,
-      licenseClass: true,
-      licenseExpiresAt: true,
-    },
   });
+
+  const drivers: DriverSummary[] = driverRecords.map((driver) => ({
+    id: driver.id,
+    name: driver.name,
+    homeBase: driver.homeBase ?? null,
+    active: driver.active,
+    licenseNumber: driver.licenseNumber ?? null,
+    licenseJurisdiction: driver.licenseJurisdiction ?? null,
+    licenseClass: driver.licenseClass ?? null,
+    licenseExpiresAt: driver.licenseExpiresAt ?? null,
+  }));
   const driverIds = drivers.map((driver) => driver.id);
 
   const metrics = new Map<string, DriverMetrics>();
