@@ -1,34 +1,33 @@
 import Link from "next/link";
 
-const links = [
-  { href: "/orders/new", title: "Create Order", description: "Capture new orders manually or with OCR." },
-  { href: "/trips", title: "Trips", description: "Review, edit, and recalculate trip profitability." },
-  { href: "/drivers", title: "Drivers", description: "Manage active drivers and their home bases." },
-  { href: "/units", title: "Units", description: "Maintain tractors and trailers assigned to trips." },
-  { href: "/rates", title: "Rates", description: "Inspect CPM rates and configuration settings." },
+const sections = [
+  { href: "/orders", label: "Orders" },
+  { href: "/orders/new", label: "Book a load" },
+  { href: "/drivers", label: "Drivers" },
+  { href: "/units", label: "Units" },
+  { href: "/rates", label: "Rates" }
 ];
 
-export default function HomePage() {
+export default function Page() {
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-slate-900">Fleet operations dashboard</h1>
-        <p className="text-slate-600">
-          Rebuilt Next.js demo with OCR-assisted orders, trip margin tracking, and basic fleet maintenance lists.
+    <section className="space-y-8">
+      <div className="space-y-4">
+        <h1 className="text-4xl font-semibold text-white">Fleet operations demo</h1>
+        <p className="max-w-2xl text-sm text-zinc-400">
+          A compact workspace to monitor orders, manage bookings, and track your fleet&apos;s operators and equipment.
         </p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {links.map(link => (
+      <div className="flex flex-wrap gap-3">
+        {sections.map((section) => (
           <Link
-            key={link.href}
-            href={link.href}
-            className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-400 hover:shadow"
+            key={section.href}
+            href={section.href}
+            className="rounded-full border border-zinc-700/80 px-4 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-white"
           >
-            <h2 className="text-lg font-semibold text-slate-900">{link.title}</h2>
-            <p className="mt-1 text-sm text-slate-600">{link.description}</p>
+            {section.label}
           </Link>
         ))}
       </div>
-    </div>
+    </section>
   );
 }

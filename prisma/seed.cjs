@@ -1,124 +1,180 @@
-const { PrismaClient } = require('@prisma/client');
+/* eslint-disable @typescript-eslint/no-var-requires */
+const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
 
-async function upsertDriver({
-  name,
-  licenseNumber,
-  licenseJurisdiction,
-  licenseClass,
-  homeBase,
-}) {
+async function main() {
   await prisma.driver.upsert({
-    where: { name },
-    update: {
-      licenseNumber,
-      licenseJurisdiction,
-      licenseClass,
-      homeBase,
+    where: { id: "driver-ron-piche" },
+    update: {},
+    create: {
+      id: "driver-ron-piche",
+      name: "Ron Piche",
+      homeBase: "Guelph",
       active: true,
+      phone: "555-0100",
+      email: "ron.piche@example.com",
+      licenseNumber: "PICHERON123",
+      licenseJurisdiction: "ON",
+      licenseClass: "AZ",
+      licenseEndorsements: ["Air brake", "Tanker"],
+      licenseExpiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+      medicalExpiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 200),
+      drugTestDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30),
+      mvrDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60)
+    }
+  });
+
+  await prisma.driver.upsert({
+    where: { id: "driver-jeff-churchill" },
+    update: {},
+    create: {
+      id: "driver-jeff-churchill",
+      name: "Jeff Churchill",
+      homeBase: "Guelph",
+      active: true,
+      phone: "555-0101",
+      email: "jeff.churchill@example.com",
+      licenseNumber: "CHURCHJEF456",
+      licenseJurisdiction: "ON",
+      licenseClass: "AZ",
+      licenseEndorsements: ["Air brake"],
+      licenseExpiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 250),
+      medicalExpiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 150),
+      drugTestDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 45),
+      mvrDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 90)
+    }
+  });
+
+  await prisma.unit.upsert({
+    where: { code: "REE-104" },
+    update: {},
+    create: {
+      code: "REE-104",
+      type: "Reefer",
+      homeBase: "Guelph",
+      active: true
+    }
+  });
+
+  await prisma.unit.upsert({
+    where: { code: "COM-012" },
+    update: {},
+    create: {
+      code: "COM-012",
+      type: "Dry van",
+      homeBase: "Cambridge",
+      active: true
+    }
+  });
+
+  await prisma.unit.upsert({
+    where: { code: "FLT-221" },
+    update: {},
+    create: {
+      code: "FLT-221",
+      type: "Flatbed",
+      homeBase: "Hamilton",
+      active: true
+    }
+  });
+
+  await Promise.all([
+    prisma.rate.upsert({
+      where: { id: "rate-reefer-gta" },
+      update: {
+        type: "Reefer",
+        zone: "GTA",
+        fixedCPM: 1.32,
+        wageCPM: 0.65,
+        addOnsCPM: 0.18,
+        rollingCPM: 0.42
+      },
+      create: {
+        id: "rate-reefer-gta",
+        type: "Reefer",
+        zone: "GTA",
+        fixedCPM: 1.32,
+        wageCPM: 0.65,
+        addOnsCPM: 0.18,
+        rollingCPM: 0.42
+      }
+    }),
+    prisma.rate.upsert({
+      where: { id: "rate-dry-van-401" },
+      update: {
+        type: "Dry van",
+        zone: "401 Corridor",
+        fixedCPM: 1.1,
+        wageCPM: 0.58,
+        addOnsCPM: 0.12,
+        rollingCPM: 0.35
+      },
+      create: {
+        id: "rate-dry-van-401",
+        type: "Dry van",
+        zone: "401 Corridor",
+        fixedCPM: 1.1,
+        wageCPM: 0.58,
+        addOnsCPM: 0.12,
+        rollingCPM: 0.35
+      }
+    }),
+    prisma.rate.upsert({
+      where: { id: "rate-flatbed-crossborder" },
+      update: {
+        type: "Flatbed",
+        zone: "Cross-border",
+        fixedCPM: 1.45,
+        wageCPM: 0.7,
+        addOnsCPM: 0.22,
+        rollingCPM: 0.5
+      },
+      create: {
+        id: "rate-flatbed-crossborder",
+        type: "Flatbed",
+        zone: "Cross-border",
+        fixedCPM: 1.45,
+        wageCPM: 0.7,
+        addOnsCPM: 0.22,
+        rollingCPM: 0.5
+      }
+    })
+  ]);
+
+  await prisma.order.upsert({
+    where: { id: "order-demo" },
+    update: {
+      customer: "Maple Leaf Foods",
+      origin: "Guelph, ON",
+      destination: "Montreal, QC",
+      puWindowStart: new Date(Date.now() + 1000 * 60 * 60 * 24),
+      puWindowEnd: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2),
+      delWindowStart: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3),
+      delWindowEnd: new Date(Date.now() + 1000 * 60 * 60 * 24 * 4),
+      requiredTruck: "Reefer",
+      notes: "Keep product below 4°C."
     },
     create: {
-      name,
-      licenseNumber,
-      licenseJurisdiction,
-      licenseClass,
-      homeBase,
+      id: "order-demo",
+      customer: "Maple Leaf Foods",
+      origin: "Guelph, ON",
+      destination: "Montreal, QC",
+      puWindowStart: new Date(Date.now() + 1000 * 60 * 60 * 24),
+      puWindowEnd: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2),
+      delWindowStart: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3),
+      delWindowEnd: new Date(Date.now() + 1000 * 60 * 60 * 24 * 4),
+      requiredTruck: "Reefer",
+      notes: "Keep product below 4°C."
     }
-  });
-}
-
-async function upsertUnit({ code, type, homeBase }) {
-  await prisma.unit.upsert({
-    where: { code },
-    update: { type, homeBase, active: true },
-    create: { code, type, homeBase }
-  });
-}
-
-async function main() {
-  const drivers = [
-    {
-      name: 'Alice M',
-      licenseNumber: 'A1234567',
-      licenseJurisdiction: 'ON',
-      licenseClass: 'AZ',
-      homeBase: 'Guelph',
-    },
-    {
-      name: 'Ben T',
-      licenseNumber: 'B9876543',
-      licenseJurisdiction: 'ON',
-      licenseClass: 'DZ',
-      homeBase: 'Kitchener',
-    },
-    {
-      name: 'Carmen R',
-      licenseNumber: 'C7654321',
-      licenseJurisdiction: 'ON',
-      licenseClass: 'AZ',
-      homeBase: 'Cambridge',
-    }
-  ];
-
-  const units = [
-    { code: 'COM-012', type: 'Tractor', homeBase: 'Guelph' },
-    { code: 'TRK-221', type: 'Straight Truck', homeBase: 'Cambridge' },
-    { code: 'REE-104', type: 'Reefer', homeBase: 'Kitchener' }
-  ];
-
-  const rates = [
-    { type: 'Company', zone: 'Ontario', fixedCPM: '1.12', wageCPM: '0.33', addOnsCPM: '0.08', rollingCPM: '0.14' },
-    { type: 'Company', zone: 'Midwest', fixedCPM: '1.26', wageCPM: '0.35', addOnsCPM: '0.10', rollingCPM: '0.17' },
-    { type: 'OwnerOp', zone: 'Ontario', fixedCPM: '0.95', wageCPM: '0.00', addOnsCPM: '0.05', rollingCPM: '0.19' },
-    { type: 'OwnerOp', zone: 'Cross-Border', fixedCPM: '1.08', wageCPM: '0.00', addOnsCPM: '0.09', rollingCPM: '0.23' }
-  ];
-
-  const rateSettings = [
-    { rateKey: 'BASE_WAGE', category: 'COM', value: '0.59', unit: '$/Mile', note: null },
-    { rateKey: 'BASE_WAGE', category: 'OO_ZONE1', value: '1.6', unit: '$/Mile', note: null },
-    { rateKey: 'BASE_WAGE', category: 'OO_ZONE2', value: '1.45', unit: '$/Mile', note: null },
-    { rateKey: 'BASE_WAGE', category: 'OO_ZONE3', value: '0.74', unit: '$/Mile', note: null },
-    { rateKey: 'SAFETY_CPM', category: 'COM', value: '0.03', unit: '$/Mile', note: null },
-    { rateKey: 'BENEFITS_PCT', category: 'GLOBAL', value: '0.2', unit: 'x Base', note: '20% base of base' },
-    { rateKey: 'PERF_CPM', category: 'GLOBAL', value: '0.03', unit: '$/Mile', note: null },
-    { rateKey: 'TRK_RM_CPM', category: 'GLOBAL', value: '0.22', unit: '$/Mile', note: 'Truck maint $/Mile' },
-    { rateKey: 'TRL_RM_CPM', category: 'GLOBAL', value: '0.03', unit: '$/Mile', note: 'Trailer maint $/Mile' },
-    { rateKey: 'FUEL_CPM', category: 'COM', value: '0.7', unit: '$/Mile', note: 'Fuel CPM' },
-    { rateKey: 'FUEL_CPM', category: 'RNR', value: '0.7', unit: '$/Mile', note: 'Fuel CPM' },
-    { rateKey: 'BC_PER', category: 'GLOBAL', value: '15', unit: '$/Event', note: 'Border Crossing' },
-    { rateKey: 'MISC_PER', category: 'GLOBAL', value: '20', unit: '$/Event', note: 'Misc' },
-    { rateKey: 'DH_PER', category: 'GLOBAL', value: '20', unit: '$/Event', note: 'Deadhead' },
-    { rateKey: 'PICK_PER', category: 'GLOBAL', value: '20', unit: '$/Event', note: 'Pickup' },
-    { rateKey: 'DEL_PER', category: 'GLOBAL', value: '20', unit: '$/Event', note: 'Delivery' },
-    { rateKey: 'MISC_WK', category: 'GLOBAL', value: '76.07', unit: '$/Week', note: 'Misc weekly' },
-    { rateKey: 'SGA_WK', category: 'GLOBAL', value: '590.91', unit: '$/Week', note: 'SG&A weekly' },
-    { rateKey: 'DTOPS_WK', category: 'GLOBAL', value: '400', unit: '$/Week', note: 'Driver tops weekly' },
-    { rateKey: 'IASSC_WK', category: 'GLOBAL', value: '153.99', unit: '$/Week', note: 'Insurance weekly' },
-    { rateKey: 'PP_WK', category: 'GLOBAL', value: '250', unit: '$/Week', note: 'Payroll processing weekly' },
-    { rateKey: 'FUEL_WK', category: 'GLOBAL', value: '200', unit: '$/Week', note: 'Fuel weekly' },
-    { rateKey: 'TRL_WK', category: 'GLOBAL', value: '180', unit: '$/Week', note: 'Trailer weekly' },
-    { rateKey: 'TRUCK_WK', category: 'GLOBAL', value: '844.3', unit: '$/Week', note: 'Truck weekly' }
-  ];
-
-  await Promise.all(drivers.map((driver) => upsertDriver(driver)));
-
-  await Promise.all(units.map((unit) => upsertUnit(unit)));
-
-  await prisma.$transaction(async (tx) => {
-    await tx.rate.deleteMany();
-    await tx.rate.createMany({ data: rates });
-    await tx.rateSetting.deleteMany();
-    await tx.rateSetting.createMany({ data: rateSettings });
   });
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
-  .catch(async (error) => {
+  .catch((error) => {
     console.error(error);
-    await prisma.$disconnect();
     process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
   });

@@ -3,13 +3,13 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 min-h-screen;
+  @apply bg-zinc-950 text-zinc-100 antialiased;
 }
 
-a {
-  @apply text-blue-600 hover:text-blue-700;
+main {
+  @apply min-h-[calc(100vh-4rem)] py-10;
 }
