@@ -1,9 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ["tesseract.js", "tesseract.js-core"],
-  },
+  serverExternalPackages: ["tesseract.js", "tesseract.js-core"],
   outputFileTracingIncludes: {
     "src/app/api/orders/ocr/route.ts": [
       "node_modules/tesseract.js/dist/worker.min.js",
