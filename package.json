@@ -32,6 +32,7 @@
     "@types/react": "file:vendor/@types/react",
     "eslint": "^9",
     "eslint-config-next": "15.5.6",
+    "@tailwindcss/postcss": "file:vendor/@tailwindcss/postcss",
     "postcss": "file:vendor/postcss",
     "prisma": "^6.17.1",
     "tailwindcss": "4.1.14",
