@@ -36,7 +36,7 @@ model Driver {
   licenseClass String? /// rename from old license
 
   /// Additional license endorsements.
-  licenseEndorsements Json?
+  licenseEndorsements Json @default("[]")
 
   /// License expiry date.
   licenseExpiresAt DateTime?
@@ -239,6 +239,20 @@ model Trip {
 
   @@index([weekStart])
   @@index([status])
+}
+
+model RateSetting {
+  id        String   @id @default(cuid())
+  rateKey   String
+  category  String
+  value     Decimal  @default(0)
+  unit      String
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([rateKey, category])
+  @@index([category])
 }
 
 model Rate {
