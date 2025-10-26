@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    serverExternalPackages: ["tesseract.js", "tesseract.js-core"],
+  },
 };
 
 export default nextConfig;
