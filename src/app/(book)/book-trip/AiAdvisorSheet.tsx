@@ -189,7 +189,7 @@ export function AiAdvisorSheet({
                             if (recommendation.unitCode) return recommendation.unitCode;
                             const unit = units.find((u) => u.id === recommendation.unitId);
                             if (!unit) return "—";
-                            return unit.name ? `${unit.code} — ${unit.name}` : unit.code ?? "—";
+                            return unit.label || unit.code || "—";
                           })()
                         : "—"}
                     </dd>

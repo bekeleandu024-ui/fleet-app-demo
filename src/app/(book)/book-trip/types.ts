@@ -28,9 +28,10 @@ export type DriverOption = {
 export type UnitOption = {
   id: string;
   code: string;
-  name: string | null;
   type: string | null;
   homeBase: string | null;
+  active: boolean;
+  label: string;
 };
 
 export type BookTripFormSnapshot = {

@@ -3,12 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-type Opt = { id: string; name?: string | null; code?: string | null };
+import type { UnitOption } from "./types";
+
+type DriverOption = { id: string; name?: string | null; code?: string | null };
 
 type Props = {
   orderId: string;
-  drivers: Opt[];
-  units: Opt[];
+  drivers: DriverOption[];
+  units: UnitOption[];
   types: string[];
   zones: string[];
 };
@@ -161,7 +163,7 @@ export default function TripForm({ orderId, drivers, units, types, zones }: Prop
         if (!compact) return null;
 
         const byCodeExact = units.find((u) =>
-          (u.code ?? "")
+          u.code
             .toLowerCase()
             .replace(/\s+/g, "")
             .replace(/[^a-z0-9]/g, "") === compact
@@ -169,7 +171,7 @@ export default function TripForm({ orderId, drivers, units, types, zones }: Prop
         if (byCodeExact) return byCodeExact;
 
         const byCodePartial = units.find((u) =>
-          (u.code ?? "")
+          u.code
             .toLowerCase()
             .replace(/\s+/g, "")
             .replace(/[^a-z0-9]/g, "")
@@ -185,9 +187,8 @@ export default function TripForm({ orderId, drivers, units, types, zones }: Prop
 
         return (
           units.find((u) => {
-            const nameLower = (u.name ?? "").toLowerCase();
-            if (!nameLower) return false;
-            return tokens.every((token) => nameLower.includes(token));
+            const labelLower = u.label.toLowerCase();
+            return tokens.every((token) => labelLower.includes(token));
           }) || null
         );
       };
@@ -781,8 +782,7 @@ export default function TripForm({ orderId, drivers, units, types, zones }: Prop
             <option value="">Select unit</option>
             {units.map(u => (
               <option key={u.id} value={u.id}>
-                {u.code}
-                {u.name ? ` — ${u.name}` : ""}
+                {u.label}
               </option>
             ))}
           </select>

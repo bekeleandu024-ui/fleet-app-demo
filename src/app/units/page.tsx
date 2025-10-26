@@ -215,7 +215,13 @@ export default async function UnitsPage() {
                         <div className="flex flex-wrap items-center gap-3">
                           <div>
                             <h3 className="text-xl font-semibold">{unit.code}</h3>
-                            <p className="text-sm text-gray-500">{unit.name}</p>
+                            <p className="text-sm text-gray-500">
+                              {unit.type
+                                ? unit.type
+                                : unit.homeBase
+                                ? `Home base: ${unit.homeBase}`
+                                : "Details not set"}
+                            </p>
                           </div>
                           <span
                             className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
