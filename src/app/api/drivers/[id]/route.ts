@@ -26,7 +26,13 @@ export async function PATCH(req: Request, { params }: RouteContext) {
           ? { homeBase: data.homeBase ?? null }
           : {}),
         ...(data.license !== undefined
-          ? { license: data.license ?? null }
+          ? {
+              licenseNumber: data.license?.number ?? null,
+              licenseJurisdiction: data.license?.jurisdiction ?? null,
+              licenseClass: data.license?.class ?? null,
+              licenseEndorsements: data.license?.endorsements ?? [],
+              licenseExpiresAt: data.license?.expiresAt ?? null,
+            }
           : {}),
         ...(data.active !== undefined ? { active: data.active } : {}),
       },

@@ -2,11 +2,29 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
-async function upsertDriver({ name, license, homeBase }) {
+async function upsertDriver({
+  name,
+  licenseNumber,
+  licenseJurisdiction,
+  licenseClass,
+  homeBase,
+}) {
   await prisma.driver.upsert({
     where: { name },
-    update: { license, homeBase, active: true },
-    create: { name, license, homeBase }
+    update: {
+      licenseNumber,
+      licenseJurisdiction,
+      licenseClass,
+      homeBase,
+      active: true,
+    },
+    create: {
+      name,
+      licenseNumber,
+      licenseJurisdiction,
+      licenseClass,
+      homeBase,
+    }
   });
 }
 
@@ -20,9 +38,27 @@ async function upsertUnit({ code, type, homeBase }) {
 
 async function main() {
   const drivers = [
-    { name: 'Alice M', license: 'AZ', homeBase: 'Guelph' },
-    { name: 'Ben T', license: 'DZ', homeBase: 'Kitchener' },
-    { name: 'Carmen R', license: 'AZ', homeBase: 'Cambridge' }
+    {
+      name: 'Alice M',
+      licenseNumber: 'A1234567',
+      licenseJurisdiction: 'ON',
+      licenseClass: 'AZ',
+      homeBase: 'Guelph',
+    },
+    {
+      name: 'Ben T',
+      licenseNumber: 'B9876543',
+      licenseJurisdiction: 'ON',
+      licenseClass: 'DZ',
+      homeBase: 'Kitchener',
+    },
+    {
+      name: 'Carmen R',
+      licenseNumber: 'C7654321',
+      licenseJurisdiction: 'ON',
+      licenseClass: 'AZ',
+      homeBase: 'Cambridge',
+    }
   ];
 
   const units = [
