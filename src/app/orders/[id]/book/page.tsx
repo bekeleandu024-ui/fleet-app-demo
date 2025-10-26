@@ -1,4 +1,5 @@
 import prisma from "@/server/prisma";
+import { mapUnitToDTO } from "@/lib/dto/unit.dto";
 import TripForm from "./ui-trip-form";
 import type { UnitOption } from "./types";
 
@@ -29,10 +30,11 @@ export default async function BookTripPage({ params }: PageProps) {
   const types = typesResult.map((r) => r.type).filter(Boolean) as string[];
   const zones = zonesResult.map((r) => r.zone).filter(Boolean) as string[];
   const units: UnitOption[] = unitsRaw
-    .filter((u) => u.active)
-    .map((u) => ({
-      ...u,
-      label: u.type ? `${u.code} · ${u.type}` : u.code,
+    .map((unit) => mapUnitToDTO(unit))
+    .filter((unit) => unit.active)
+    .map((unit) => ({
+      ...unit,
+      label: unit.type ? `${unit.code} · ${unit.type}` : unit.code,
     }));
 
   return (

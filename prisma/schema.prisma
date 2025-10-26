@@ -7,132 +7,334 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model Order {
-  id             String    @id @default(cuid())
-  customer       String
-  origin         String
-  destination    String
-  puWindowStart  DateTime?
-  puWindowEnd    DateTime?
-  delWindowStart DateTime?
-  delWindowEnd   DateTime?
-  requiredTruck  String?
-  notes          String?
-  createdAt      DateTime  @default(now())
-
-  // inverse relation so Trip.order works
-  trips Trip[]
-}
-
-model Trip {
+model Driver {
+  /// Primary identifier.
   id String @id @default(cuid())
 
-  // relation to Order (keep)
-  orderId String?
-  order   Order?  @relation(fields: [orderId], references: [id])
+  /// Display name for the driver.
+  name String
 
-  // existing text fields (keep)
-  driver String
-  unit   String
+  /// Optional phone number.
+  phone String?
 
-  // timing (keep)
-  tripStart DateTime?
-  tripEnd   DateTime?
-  weekStart DateTime?
+  /// Optional email address.
+  email String?
 
-  // classification
-  type String?
-  zone String?
-
-  // numbers (SQLite: keep plain Decimal, no @db.Decimal)
-  miles      Decimal
-  revenue    Decimal?
-  fixedCPM   Decimal?
-  wageCPM    Decimal?
-  addOnsCPM  Decimal?
-  rollingCPM Decimal?
-
-  totalCPM  Decimal?
-  totalCost Decimal?
-  profit    Decimal?
-  marginPct Decimal? // 0..1
-
-  // status/timestamps (keep)
-  status    String   @default("Created")
-  createdAt DateTime @default(now())
-  updatedAt  DateTime @default(now()) @updatedAt
-
-  // NEW optional FKs to lookup tables
-  driverId String?
-  unitId   String?
-  rateId   String?
-
-  // NEW relations to lookup tables
-  driverRef Driver? @relation("TripDriver", fields: [driverId], references: [id])
-  unitRef   Unit?   @relation("TripUnit", fields: [unitId], references: [id])
-  rateRef   Rate?   @relation("TripRate", fields: [rateId], references: [id])
-
-  // events (keep)
-  events Event[]
-}
-
-model Event {
-  id        String   @id @default(cuid())
-  tripId    String
-  trip      Trip     @relation(fields: [tripId], references: [id])
-  type      String // TripStarted, ArrivedPU, LeftPU, CrossedBorder, ArrivedDEL, FinishedDEL
-  at        DateTime // timestamp
-  location  String?
-  notes     String?
-  createdAt DateTime @default(now())
-}
-
-// NEW lookup tables
-model Driver {
-  id       String  @id @default(cuid())
-  name     String  @unique
-  license  String?
+  /// Optional home terminal or city.
   homeBase String?
-  active   Boolean @default(true)
-  // back-ref
-  trips    Trip[]  @relation("TripDriver")
+
+  /// Whether the driver is active for dispatch.
+  active Boolean @default(true)
+
+  /// Commercial license number.
+  licenseNumber String?
+
+  /// Jurisdiction that issued the license.
+  licenseJurisdiction String? /// Province/State
+
+  /// License class (A, AZ, etc.).
+  licenseClass String? /// rename from old license
+
+  /// Additional license endorsements.
+  licenseEndorsements Json?
+
+  /// License expiry date.
+  licenseExpiresAt DateTime?
+
+  /// Date medical certificate expires.
+  medicalExpiresAt DateTime?
+
+  /// Last drug test date.
+  drugTestDate DateTime?
+
+  /// Last motor vehicle record pull date.
+  mvrDate DateTime?
+
+  /// Payroll type.
+  payType String? /// "Hourly" | "CPM" | null
+
+  /// Hourly pay rate.
+  hourlyRate Decimal?
+
+  /// Pay per mile.
+  cpmRate Decimal?
+
+  /// Optional deductions profile reference.
+  deductionsProfileId String?
+
+  /// Employment status.
+  status String @default("Active") /// "Active" | "Inactive"
+
+  /// Reason driver is inactive.
+  inactiveReason String?
+
+  /// Date driver was set inactive.
+  inactiveAt DateTime?
+
+  /// Creation timestamp.
+  createdAt DateTime @default(now())
+
+  /// Update timestamp.
+  updatedAt DateTime @updatedAt
+
+  /// Trips driven by this driver.
+  trips Trip[]
+
+  @@unique([licenseNumber, licenseJurisdiction])
+  @@index([active])
 }
 
 model Unit {
-  id       String  @id @default(cuid())
-  code     String  @unique // e.g. "COM-012"
-  type     String? // Tractor/Box/etc.
+  /// Primary identifier.
+  id String @id @default(cuid())
+
+  /// Fleet code or tractor number.
+  code String @unique
+
+  /// Equipment type.
+  type String?
+
+  /// Optional home base.
   homeBase String?
-  active   Boolean @default(true)
-  // back-ref
-  trips    Trip[]  @relation("TripUnit")
+
+  /// Whether the unit is active.
+  active Boolean @default(true)
+
+  /// Trips assigned to this unit.
+  trips Trip[]
+
+  @@index([active])
+}
+
+model Order {
+  /// Primary identifier.
+  id String @id @default(cuid())
+
+  /// Customer name.
+  customer String
+
+  /// Origin location.
+  origin String
+
+  /// Destination location.
+  destination String
+
+  /// Pickup window start.
+  puWindowStart DateTime?
+
+  /// Pickup window end.
+  puWindowEnd DateTime?
+
+  /// Delivery window start.
+  delWindowStart DateTime?
+
+  /// Delivery window end.
+  delWindowEnd DateTime?
+
+  /// Requested equipment type.
+  requiredTruck String?
+
+  /// Extra notes.
+  notes String?
+
+  /// Creation timestamp.
+  createdAt DateTime @default(now())
+
+  /// Trips linked to this order.
+  trips Trip[]
+
+  @@index([createdAt])
+}
+
+model Trip {
+  /// Primary identifier.
+  id String @id @default(cuid())
+
+  /// Related order id.
+  orderId String?
+
+  /// Assigned driver id.
+  driverId String?
+
+  /// Assigned unit id.
+  unitId String?
+
+  /// Snapshot of driver display name.
+  driver String?
+
+  /// Snapshot of unit display label.
+  unit String?
+
+  /// Trip classification type.
+  type String?
+
+  /// Trip zone or market.
+  zone String?
+
+  /// Trip start timestamp.
+  tripStart DateTime?
+
+  /// Trip end timestamp.
+  tripEnd DateTime?
+
+  /// Week start for payroll.
+  weekStart DateTime?
+
+  /// Trip miles.
+  miles Decimal?
+
+  /// Trip revenue.
+  revenue Decimal?
+
+  /// Fixed cents per mile.
+  fixedCPM Decimal?
+
+  /// Wage cents per mile.
+  wageCPM Decimal?
+
+  /// Add-on cents per mile.
+  addOnsCPM Decimal?
+
+  /// Rolling average CPM.
+  rollingCPM Decimal?
+
+  /// Total cents per mile.
+  totalCPM Decimal?
+
+  /// Total cost of trip.
+  totalCost Decimal?
+
+  /// Profit amount.
+  profit Decimal?
+
+  /// Margin percent.
+  marginPct Decimal?
+
+  /// Trip status.
+  status String @default("Created") /// Created|Dispatched|InProgress|Completed|Cancelled
+
+  /// Linked rate id.
+  rateId String?
+
+  /// Creation timestamp.
+  createdAt DateTime @default(now())
+
+  /// Update timestamp.
+  updatedAt DateTime @updatedAt
+
+  /// Related order.
+  order Order? @relation(fields: [orderId], references: [id])
+
+  /// Related driver.
+  driverRef Driver? @relation(fields: [driverId], references: [id])
+
+  /// Related unit.
+  unitRef Unit? @relation(fields: [unitId], references: [id])
+
+  /// Related rate.
+  rate Rate? @relation(fields: [rateId], references: [id])
+
+  /// Trip events (if used).
+  events Event[]
+
+  @@index([weekStart])
+  @@index([status])
 }
 
 model Rate {
-  id         String  @id @default(cuid())
-  type       String? // Company, OwnerOp, External
-  zone       String? // Ontario, Midwest, GTA, US-East
-  fixedCPM   Decimal
-  wageCPM    Decimal
-  addOnsCPM  Decimal
-  rollingCPM Decimal
-  // back-ref (optional to use later)
-  trips      Trip[]  @relation("TripRate")
+  /// Primary identifier.
+  id String @id @default(cuid())
 
-  @@index([type])
-  @@index([zone])
+  /// Rate category/type.
+  type String /// keep string for flexibility ("Company", "Owner-Op", etc.)
+
+  /// Optional zone name.
+  zone String?
+
+  /// Fixed cents per mile component.
+  fixedCPM Decimal @default(0)
+
+  /// Wage cents per mile component.
+  wageCPM Decimal @default(0)
+
+  /// Add-on cents per mile component.
+  addOnsCPM Decimal @default(0)
+
+  /// Rolling cents per mile component.
+  rollingCPM Decimal @default(0)
+
+  /// Trips using this rate.
+  trips Trip[]
 }
 
-model RateSetting {
-  id        String   @id @default(cuid())
-  rateKey   String
-  category  String
-  value     Decimal
-  unit      String
-  note      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+model Handling {
+  /// Primary identifier.
+  id String @id @default(cuid())
 
-  @@unique([rateKey, category])
-  @@index([category])
+  /// Lookup key for the rule.
+  ruleKey String /// "Pickup" | "Drop" | ...
+
+  /// Category of handling charge.
+  category String /// "event"
+
+  /// Monetary value for the charge.
+  value Decimal @default(0)
+
+  /// Unit for the charge.
+  unit String /// "per event"
+
+  /// Optional note.
+  note String?
+
+  /// Creation timestamp.
+  createdAt DateTime @default(now())
+
+  /// Update timestamp.
+  updatedAt DateTime @updatedAt
+}
+
+model List {
+  /// Primary identifier.
+  id String @id @default(cuid())
+
+  /// Unique slug for lookups.
+  slug String @unique
+
+  /// Human readable label.
+  label String
+
+  /// Type/category of lookup.
+  type String
+
+  /// Creation timestamp.
+  createdAt DateTime @default(now())
+
+  /// Update timestamp.
+  updatedAt DateTime @updatedAt
+}
+
+model Event {
+  /// Primary identifier.
+  id String @id @default(cuid())
+
+  /// Related trip id.
+  tripId String
+
+  /// Parent trip reference.
+  trip Trip @relation(fields: [tripId], references: [id])
+
+  /// Event type string.
+  type String
+
+  /// Timestamp for the event.
+  at DateTime
+
+  /// Optional location description.
+  location String?
+
+  /// Optional notes.
+  notes String?
+
+  /// Creation timestamp.
+  createdAt DateTime @default(now())
 }
