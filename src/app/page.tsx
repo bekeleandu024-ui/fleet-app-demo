@@ -1,66 +1,34 @@
 import Link from "next/link";
 
 const links = [
-  {
-    href: "/orders",
-    title: "Orders",
-    description: "Create orders and dispatch them to trips.",
-  },
-  {
-    href: "/trips",
-    title: "Trips",
-    description: "Track trip performance and status.",
-  },
-  {
-    href: "/live-fleet",
-    title: "Fleet map",
-    description: "Monitor truck positions and current assignments.",
-  },
-  {
-    href: "/drivers",
-    title: "Drivers",
-    description: "Manage driver profiles and availability.",
-  },
-  {
-    href: "/units",
-    title: "Units",
-    description: "Maintain tractors, trailers, and equipment.",
-  },
-  {
-    href: "/rates",
-    title: "Rates",
-    description: "Define CPM components; match by type/zone.",
-  },
+  { href: "/orders/new", title: "Create Order", description: "Capture new orders manually or with OCR." },
+  { href: "/trips", title: "Trips", description: "Review, edit, and recalculate trip profitability." },
+  { href: "/drivers", title: "Drivers", description: "Manage active drivers and their home bases." },
+  { href: "/units", title: "Units", description: "Maintain tractors and trailers assigned to trips." },
+  { href: "/rates", title: "Rates", description: "Inspect CPM rates and configuration settings." },
 ];
 
 export default function HomePage() {
   return (
-    <main className="mx-auto max-w-3xl space-y-8 p-6 text-slate-100">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-bold text-slate-100">
-          Fleet operations demo
-        </h1>
-        <p className="text-sm text-slate-300">
-          Quick shortcuts to the core workflows in the sample app.
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold text-slate-900">Fleet operations dashboard</h1>
+        <p className="text-slate-600">
+          Rebuilt Next.js demo with OCR-assisted orders, trip margin tracking, and basic fleet maintenance lists.
         </p>
-      </header>
-
-      <section className="grid gap-4 sm:grid-cols-2">
-        {links.map((link) => (
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {links.map(link => (
           <Link
             key={link.href}
             href={link.href}
-            className="group block rounded-lg border border-slate-800 bg-slate-900/60 p-4 transition-colors duration-200 hover:border-slate-600 hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+            className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-400 hover:shadow"
           >
-            <h2 className="text-lg font-semibold text-slate-100 transition-colors duration-200 group-hover:text-sky-300">
-              {link.title}
-            </h2>
-            <p className="mt-2 text-sm text-slate-300 transition-colors duration-200 group-hover:text-slate-200">
-              {link.description}
-            </p>
+            <h2 className="text-lg font-semibold text-slate-900">{link.title}</h2>
+            <p className="mt-1 text-sm text-slate-600">{link.description}</p>
           </Link>
         ))}
-      </section>
-    </main>
+      </div>
+    </div>
   );
 }

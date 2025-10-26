@@ -1,43 +1,41 @@
-// src/app/api/orders/route.ts
 import { NextResponse } from "next/server";
-import prisma from "@/server/prisma";
+import { z } from "zod";
+import prisma from "@/lib/prisma";
 
-// Get all orders (sorted by latest)
-export async function GET() {
-  const orders = await prisma.order.findMany({
-    orderBy: { createdAt: "desc" },
-  });
-  return NextResponse.json(orders);
-}
+const payloadSchema = z.object({
+  customer: z.string().trim().min(1, "Customer is required"),
+  origin: z.string().trim().min(1, "Origin is required"),
+  destination: z.string().trim().min(1, "Destination is required"),
+  puWindowStart: z.string().optional(),
+  puWindowEnd: z.string().optional(),
+  delWindowStart: z.string().optional(),
+  delWindowEnd: z.string().optional(),
+  requiredTruck: z.string().optional(),
+  notes: z.string().optional(),
+});
 
-// Create a new order
-export async function POST(req: Request) {
-  const body = await req.json();
-
-  // Basic validation
-  if (!body.customer || !body.origin || !body.destination) {
-    return NextResponse.json(
-      { error: "customer, origin, and destination are required" },
-      { status: 400 }
-    );
+export async function POST(request: Request) {
+  const json = await request.json().catch(() => null);
+  const parseResult = payloadSchema.safeParse(json);
+  if (!parseResult.success) {
+    const errors = parseResult.error.flatten().fieldErrors;
+    return NextResponse.json({ ok: false, errors }, { status: 400 });
   }
 
-  // Insert into the database
+  const data = parseResult.data;
   const order = await prisma.order.create({
     data: {
-      customer: body.customer,
-      origin: body.origin,
-      destination: body.destination,
-      puWindowStart: body.puWindowStart ? new Date(body.puWindowStart) : null,
-      puWindowEnd: body.puWindowEnd ? new Date(body.puWindowEnd) : null,
-      delWindowStart: body.delWindowStart
-        ? new Date(body.delWindowStart)
-        : null,
-      delWindowEnd: body.delWindowEnd ? new Date(body.delWindowEnd) : null,
-      requiredTruck: body.requiredTruck ?? null,
-      notes: body.notes ?? null,
+      customer: data.customer,
+      origin: data.origin,
+      destination: data.destination,
+      puWindowStart: data.puWindowStart ? new Date(data.puWindowStart) : undefined,
+      puWindowEnd: data.puWindowEnd ? new Date(data.puWindowEnd) : undefined,
+      delWindowStart: data.delWindowStart ? new Date(data.delWindowStart) : undefined,
+      delWindowEnd: data.delWindowEnd ? new Date(data.delWindowEnd) : undefined,
+      requiredTruck: data.requiredTruck?.trim() || undefined,
+      notes: data.notes?.trim() || undefined,
     },
   });
 
-  return NextResponse.json({ ok: true, id: order.id });
+  return NextResponse.json({ ok: true, order });
 }

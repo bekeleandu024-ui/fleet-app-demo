@@ -1,13 +1,13 @@
-import UnitForm from "../ui-unit-form";
+import UnitForm from "../unit-form";
 
 export default function NewUnitPage() {
   return (
-    <main className="mx-auto max-w-xl space-y-6 p-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">New Unit</h1>
-        <p className="text-sm text-gray-600">Create a piece of equipment for dispatching.</p>
+        <h1 className="text-2xl font-semibold text-slate-900">New unit</h1>
+        <p className="text-sm text-slate-600">Add a tractor or trailer to assign on trips.</p>
       </div>
       <UnitForm mode="create" />
-    </main>
+    </div>
   );
 }
