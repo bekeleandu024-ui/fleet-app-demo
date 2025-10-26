@@ -36,7 +36,7 @@ export default async function BookTripPage() {
     prisma.unit.findMany({
       where: { active: true },
       orderBy: { code: "asc" },
-      select: { id: true, code: true, name: true, type: true, homeBase: true },
+      select: { id: true, code: true, type: true, homeBase: true, active: true },
     }),
     prisma.rate.findFirst({
       orderBy: { id: "desc" },
@@ -97,9 +97,10 @@ export default async function BookTripPage() {
   const unitOptions: UnitOption[] = units.map((unit) => ({
     id: unit.id,
     code: unit.code,
-    name: unit.name ?? null,
     type: unit.type ?? null,
     homeBase: unit.homeBase ?? null,
+    active: unit.active,
+    label: unit.type ? `${unit.code} · ${unit.type}` : unit.code,
   }));
 
   return (

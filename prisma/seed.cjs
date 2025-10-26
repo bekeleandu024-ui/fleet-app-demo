@@ -10,11 +10,11 @@ async function upsertDriver({ name, license, homeBase }) {
   });
 }
 
-async function upsertUnit({ code, name, type, homeBase }) {
+async function upsertUnit({ code, type, homeBase }) {
   await prisma.unit.upsert({
     where: { code },
-    update: { name, type, homeBase, active: true },
-    create: { code, name, type, homeBase }
+    update: { type, homeBase, active: true },
+    create: { code, type, homeBase }
   });
 }
 
@@ -26,9 +26,9 @@ async function main() {
   ];
 
   const units = [
-    { code: 'COM-012', name: 'Comet 12', type: 'Tractor', homeBase: 'Guelph' },
-    { code: 'TRK-221', name: 'Transporter 221', type: 'Straight Truck', homeBase: 'Cambridge' },
-    { code: 'REE-104', name: 'Reefer 104', type: 'Reefer', homeBase: 'Kitchener' }
+    { code: 'COM-012', type: 'Tractor', homeBase: 'Guelph' },
+    { code: 'TRK-221', type: 'Straight Truck', homeBase: 'Cambridge' },
+    { code: 'REE-104', type: 'Reefer', homeBase: 'Kitchener' }
   ];
 
   const rates = [

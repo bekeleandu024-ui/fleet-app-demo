@@ -1,5 +1,6 @@
 import prisma from "@/server/prisma";
 import TripForm from "./ui-trip-form";
+import type { UnitOption } from "./types";
 
 type PageProps = {
   params: { id: string };
@@ -11,16 +12,15 @@ export default async function BookTripPage({ params }: PageProps) {
   const order = await prisma.order.findUnique({ where: { id } });
   if (!order) return <main className="p-6">Order not found.</main>;
 
-  const [drivers, units, typesResult, zonesResult] = await Promise.all([
+  const [drivers, unitsRaw, typesResult, zonesResult] = await Promise.all([
     prisma.driver.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
     prisma.unit.findMany({
-      where: { active: true },
       orderBy: { code: "asc" },
-      select: { id: true, code: true, name: true },
+      select: { id: true, code: true, type: true, homeBase: true, active: true },
     }),
     prisma.rate.findMany({ distinct: ["type"], select: { type: true } }),
     prisma.rate.findMany({ distinct: ["zone"], select: { zone: true } }),
@@ -28,6 +28,12 @@ export default async function BookTripPage({ params }: PageProps) {
 
   const types = typesResult.map((r) => r.type).filter(Boolean) as string[];
   const zones = zonesResult.map((r) => r.zone).filter(Boolean) as string[];
+  const units: UnitOption[] = unitsRaw
+    .filter((u) => u.active)
+    .map((u) => ({
+      ...u,
+      label: u.type ? `${u.code} · ${u.type}` : u.code,
+    }));
 
   return (
     <main className="max-w-xl mx-auto p-6">
