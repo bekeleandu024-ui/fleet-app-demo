@@ -14,6 +14,7 @@
     "seed": "node prisma/seed.cjs"
   },
   "dependencies": {
+    "autoprefixer": "file:vendor/autoprefixer",
     "@prisma/client": "^6.17.1",
     "chrono-node": "file:src/vendor/chrono-node",
     "luxon": "file:src/vendor/luxon",
@@ -29,7 +30,6 @@
     "@tailwindcss/forms": "^0.5.9",
     "@types/node": "file:vendor/@types/node",
     "@types/react": "file:vendor/@types/react",
-    "autoprefixer": "file:vendor/autoprefixer",
     "eslint": "^9",
     "eslint-config-next": "15.5.6",
     "postcss": "file:vendor/postcss",
