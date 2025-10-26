@@ -1,56 +1,113 @@
-import Link from "next/link";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/server/prisma";
+import { formatYMD } from "@/lib/date";
+import { StatusPill } from "@/components/StatusPill";
+
+function licenseStatusColor(expiresAt: Date | null): string {
+  if (!expiresAt) {
+    return "text-zinc-500";
+  }
+
+  const now = new Date();
+  const diff = expiresAt.getTime() - now.getTime();
+  const days = diff / (1000 * 60 * 60 * 24);
+
+  if (days < 0) {
+    return "text-rose-400";
+  }
+
+  if (days <= 30) {
+    return "text-amber-300";
+  }
+
+  return "text-emerald-300";
+}
 
 export default async function DriversPage() {
-  const drivers = await prisma.driver.findMany({ orderBy: { name: "asc" } });
+  const raw = await prisma.driver.findMany({
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      homeBase: true,
+      active: true,
+      phone: true,
+      email: true,
+      licenseNumber: true,
+      licenseJurisdiction: true,
+      licenseClass: true,
+      licenseEndorsements: true,
+      licenseExpiresAt: true,
+      medicalExpiresAt: true,
+      drugTestDate: true,
+      createdAt: true
+    }
+  });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Drivers</h1>
-          <p className="text-sm text-slate-600">Manage drivers assigned to trips.</p>
-        </div>
-        <Link href="/drivers/new" className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white">
-          + New driver
-        </Link>
-      </div>
-      <div className="overflow-x-auto rounded border border-slate-200 bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead className="bg-slate-50">
+    <section className="space-y-6">
+      <header>
+        <h1 className="text-2xl font-semibold text-white">Drivers</h1>
+        <p className="text-sm text-zinc-400">Credential snapshot for fleet operators.</p>
+      </header>
+      <div className="overflow-x-auto rounded-lg border border-zinc-800/80 bg-zinc-900/40">
+        <table className="min-w-full divide-y divide-zinc-800 text-sm">
+          <thead className="bg-zinc-900/60 text-left text-xs uppercase tracking-wide text-zinc-500">
             <tr>
-              <th className="px-4 py-2 text-left font-medium text-slate-600">Name</th>
-              <th className="px-4 py-2 text-left font-medium text-slate-600">Home base</th>
-              <th className="px-4 py-2 text-left font-medium text-slate-600">Status</th>
-              <th className="px-4 py-2 text-right font-medium text-slate-600">Actions</th>
+              <th className="px-4 py-3">Driver</th>
+              <th className="px-4 py-3">Home base</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">License</th>
+              <th className="px-4 py-3">License expiry</th>
+              <th className="px-4 py-3">Phone</th>
+              <th className="px-4 py-3">Email</th>
+              <th className="px-4 py-3">Created</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 bg-white">
-            {drivers.map(driver => (
-              <tr key={driver.id}>
-                <td className="px-4 py-2">{driver.name}</td>
-                <td className="px-4 py-2">{driver.homeBase ?? "—"}</td>
-                <td className="px-4 py-2">{driver.active ? "Active" : "Inactive"}</td>
-                <td className="px-4 py-2 text-right">
-                  <Link
-                    href={`/drivers/${driver.id}/edit`}
-                    className="rounded border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:border-slate-400"
-                  >
-                    Edit
-                  </Link>
-                </td>
-              </tr>
-            ))}
-            {drivers.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
-                  No drivers yet.
-                </td>
-              </tr>
-            )}
+          <tbody className="divide-y divide-zinc-800 text-zinc-200">
+            {raw.map((driver) => {
+              const licenseSummary = driver.licenseNumber
+                ? `${driver.licenseClass ?? "-"} ${driver.licenseNumber}${driver.licenseJurisdiction ? ` (${driver.licenseJurisdiction})` : ""}`
+                : "-";
+
+              const endorsements = driver.licenseEndorsements?.length
+                ? driver.licenseEndorsements.join(", ")
+                : null;
+
+              const expiresAt = driver.licenseExpiresAt ? new Date(driver.licenseExpiresAt) : null;
+
+              return (
+                <tr key={driver.id} className="hover:bg-zinc-900/60">
+                  <td className="px-4 py-3 font-medium text-white">{driver.name}</td>
+                  <td className="px-4 py-3">{driver.homeBase ?? "-"}</td>
+                  <td className="px-4 py-3">
+                    <StatusPill active={driver.active} />
+                  </td>
+                  <td className="px-4 py-3 text-zinc-300">
+                    <div className="flex flex-col">
+                      <span>{licenseSummary}</span>
+                      {endorsements ? <span className="text-xs text-zinc-500">{endorsements}</span> : null}
+                    </div>
+                  </td>
+                  <td className={`px-4 py-3 ${licenseStatusColor(expiresAt)}`}>
+                    {formatYMD(expiresAt)}
+                  </td>
+                  <td className="px-4 py-3">{driver.phone ?? "-"}</td>
+                  <td className="px-4 py-3">
+                    {driver.email ? (
+                      <a className="text-emerald-300 hover:text-emerald-200" href={`mailto:${driver.email}`}>
+                        {driver.email}
+                      </a>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-zinc-400">{formatYMD(driver.createdAt)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
   );
 }

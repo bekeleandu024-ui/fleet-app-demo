@@ -1,5 +1,57 @@
-datasource db { provider = "sqlite"; url = env("DATABASE_URL") }
-generator client { provider = "prisma-client-js" }
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Driver {
+  id                    String    @id @default(cuid())
+  name                  String
+  homeBase              String?
+  active                Boolean   @default(true)
+  phone                 String?
+  email                 String?
+  licenseNumber         String?
+  licenseJurisdiction   String?
+  licenseClass          String?
+  licenseEndorsements   String[]  @default([])
+  licenseExpiresAt      DateTime?
+  medicalExpiresAt      DateTime?
+  drugTestDate          DateTime?
+  mvrDate               DateTime?
+  payType               String?
+  hourlyRate            Decimal?  @db.Decimal(10, 2)
+  cpmRate               Decimal?  @db.Decimal(10, 2)
+  deductionsProfileId   String?
+  status                String?
+  inactiveReason        String?
+  inactiveAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  trips                 Trip[]
+}
+
+model Unit {
+  id       String  @id @default(cuid())
+  code     String  @unique
+  type     String?
+  homeBase String?
+  active   Boolean @default(true)
+  trips    Trip[]
+}
+
+model Rate {
+  id         String   @id @default(cuid())
+  type       String?
+  zone       String?
+  fixedCPM   Decimal? @db.Decimal(10, 2)
+  wageCPM    Decimal? @db.Decimal(10, 2)
+  addOnsCPM  Decimal? @db.Decimal(10, 2)
+  rollingCPM Decimal? @db.Decimal(10, 2)
+}
 
 model Order {
   id             String   @id @default(cuid())
@@ -17,89 +69,22 @@ model Order {
 }
 
 model Trip {
-  id         String   @id @default(cuid())
-  orderId    String?
-  order      Order?   @relation(fields: [orderId], references: [id])
-  driver     String
-  unit       String
-  tripStart  DateTime?
-  tripEnd    DateTime?
-  weekStart  DateTime?
-  type       String?
-  zone       String?
-  miles      Decimal
-  revenue    Decimal?
-  fixedCPM   Decimal?
-  wageCPM    Decimal?
-  addOnsCPM  Decimal?
-  rollingCPM Decimal?
-  totalCPM   Decimal?
-  totalCost  Decimal?
-  profit     Decimal?
-  marginPct  Decimal?
-  status     String   @default("Created")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now()) @updatedAt
-  driverId   String?
-  unitId     String?
-  rateId     String?
-  driverRef  Driver?  @relation("TripDriver", fields: [driverId], references: [id])
-  unitRef    Unit?    @relation("TripUnit", fields: [unitId], references: [id])
-  rateRef    Rate?    @relation("TripRate", fields: [rateId], references: [id])
-  events     Event[]
-}
-
-model Event {
-  id        String   @id @default(cuid())
-  tripId    String
-  trip      Trip     @relation(fields: [tripId], references: [id])
-  type      String
-  at        DateTime
-  location  String?
-  notes     String?
-  createdAt DateTime @default(now())
-}
-
-model Driver {
-  id       String  @id @default(cuid())
-  name     String  @unique
-  license  String?
-  homeBase String?
-  active   Boolean @default(true)
-  trips    Trip[]  @relation("TripDriver")
-}
-
-model Unit {
-  id       String  @id @default(cuid())
-  code     String  @unique
-  type     String?
-  homeBase String?
-  active   Boolean @default(true)
-  trips    Trip[]  @relation("TripUnit")
-}
-
-model Rate {
-  id         String  @id @default(cuid())
-  type       String?
-  zone       String?
-  fixedCPM   Decimal
-  wageCPM    Decimal
-  addOnsCPM  Decimal
-  rollingCPM Decimal
-  trips      Trip[]  @relation("TripRate")
-  @@index([type])
-  @@index([zone])
-}
-
-model RateSetting {
-  id        String   @id @default(cuid())
-  rateKey   String
-  category  String
-  value     Decimal
-  unit      String
-  note      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-  @@unique([rateKey, category])
-  @@index([category])
+  id          String   @id @default(cuid())
+  orderId     String?
+  order       Order?   @relation(fields: [orderId], references: [id])
+  driverId    String?
+  driver      Driver?  @relation(fields: [driverId], references: [id])
+  unitId      String?
+  unit        Unit?    @relation(fields: [unitId], references: [id])
+  miles       Decimal? @db.Decimal(10, 2)
+  revenue     Decimal? @db.Decimal(12, 2)
+  fixedCPM    Decimal? @db.Decimal(10, 2)
+  wageCPM     Decimal? @db.Decimal(10, 2)
+  addOnsCPM   Decimal? @db.Decimal(10, 2)
+  rollingCPM  Decimal? @db.Decimal(10, 2)
+  totalCPM    Decimal? @db.Decimal(10, 2)
+  totalCost   Decimal? @db.Decimal(12, 2)
+  profit      Decimal? @db.Decimal(12, 2)
+  marginPct   Decimal? @db.Decimal(5, 2)
+  createdAt   DateTime @default(now())
 }
