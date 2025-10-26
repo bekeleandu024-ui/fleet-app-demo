@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { useRouter } from "next/navigation";
 import OcrDropzone from "./OcrDropzone";
 import type { PartialOrderFields } from "@/lib/ocr/types";
@@ -20,6 +20,16 @@ const EMPTY_FORM = {
 type FormKey = keyof typeof EMPTY_FORM;
 
 type FormState = typeof EMPTY_FORM;
+
+const textInputProps: InputHTMLAttributes<HTMLInputElement> = {
+  spellCheck: false,
+  "data-ms-editor": "true",
+};
+
+const textAreaProps: TextareaHTMLAttributes<HTMLTextAreaElement> = {
+  spellCheck: false,
+  "data-ms-editor": "true",
+};
 
 function isoToInputValue(value: string | null | undefined) {
   if (!value) return "";
@@ -56,7 +66,7 @@ export default function NewOrderPage() {
     });
   };
 
-  const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitting(true);
     try {
@@ -91,6 +101,7 @@ export default function NewOrderPage() {
           <label className="md:col-span-2">
             <span className="text-sm font-medium text-slate-700">Customer *</span>
             <input
+              {...textInputProps}
               required
               value={form.customer}
               onChange={event => updateField("customer", event.target.value)}
@@ -100,6 +111,7 @@ export default function NewOrderPage() {
           <label>
             <span className="text-sm font-medium text-slate-700">Origin *</span>
             <input
+              {...textInputProps}
               required
               value={form.origin}
               onChange={event => updateField("origin", event.target.value)}
@@ -109,6 +121,7 @@ export default function NewOrderPage() {
           <label>
             <span className="text-sm font-medium text-slate-700">Destination *</span>
             <input
+              {...textInputProps}
               required
               value={form.destination}
               onChange={event => updateField("destination", event.target.value)}
@@ -118,6 +131,7 @@ export default function NewOrderPage() {
           <label>
             <span className="text-sm font-medium text-slate-700">Required Truck</span>
             <input
+              {...textInputProps}
               value={form.requiredTruck}
               onChange={event => updateField("requiredTruck", event.target.value)}
               className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
@@ -129,6 +143,7 @@ export default function NewOrderPage() {
           <label>
             <span className="text-sm font-medium text-slate-700">PU Window Start</span>
             <input
+              {...textInputProps}
               type="datetime-local"
               value={form.puWindowStart}
               onChange={event => updateField("puWindowStart", event.target.value)}
@@ -138,6 +153,7 @@ export default function NewOrderPage() {
           <label>
             <span className="text-sm font-medium text-slate-700">PU Window End</span>
             <input
+              {...textInputProps}
               type="datetime-local"
               value={form.puWindowEnd}
               onChange={event => updateField("puWindowEnd", event.target.value)}
@@ -147,6 +163,7 @@ export default function NewOrderPage() {
           <label>
             <span className="text-sm font-medium text-slate-700">DEL Window Start</span>
             <input
+              {...textInputProps}
               type="datetime-local"
               value={form.delWindowStart}
               onChange={event => updateField("delWindowStart", event.target.value)}
@@ -156,6 +173,7 @@ export default function NewOrderPage() {
           <label>
             <span className="text-sm font-medium text-slate-700">DEL Window End</span>
             <input
+              {...textInputProps}
               type="datetime-local"
               value={form.delWindowEnd}
               onChange={event => updateField("delWindowEnd", event.target.value)}
@@ -167,6 +185,7 @@ export default function NewOrderPage() {
         <label>
           <span className="text-sm font-medium text-slate-700">Notes</span>
           <textarea
+            {...textAreaProps}
             rows={4}
             value={form.notes}
             onChange={event => updateField("notes", event.target.value)}
