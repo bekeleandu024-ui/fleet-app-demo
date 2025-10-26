@@ -62,7 +62,19 @@ const ensureMetrics = (map: Map<string, DriverMetrics>, id: string) => {
 };
 
 export default async function Drivers() {
-  const drivers = await prisma.driver.findMany({ orderBy: { name: "asc" } });
+  const drivers = await prisma.driver.findMany({
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      homeBase: true,
+      active: true,
+      licenseNumber: true,
+      licenseJurisdiction: true,
+      licenseClass: true,
+      licenseExpiresAt: true,
+    },
+  });
   const driverIds = drivers.map((driver) => driver.id);
 
   const metrics = new Map<string, DriverMetrics>();
@@ -205,6 +217,17 @@ export default async function Drivers() {
                 const averageRevenue =
                   metric.totalTrips > 0 ? metric.totalRevenue / metric.totalTrips : 0;
 
+                const licenseDetails = driver.licenseNumber
+                  ? driver.licenseJurisdiction
+                    ? `${driver.licenseNumber} (${driver.licenseJurisdiction})`
+                    : driver.licenseNumber
+                  : null;
+
+                const licenseClass = driver.licenseClass ?? null;
+                const licenseExpires = driver.licenseExpiresAt
+                  ? dateFormatter.format(driver.licenseExpiresAt)
+                  : null;
+
                 return (
                   <li
                     key={driver.id}
@@ -228,7 +251,13 @@ export default async function Drivers() {
                           Home base: {driver.homeBase ? driver.homeBase : "Not set"}
                         </div>
                         <div className="text-sm text-gray-600">
-                          License: {driver.license ? driver.license : "Not captured"}
+                          License: {licenseDetails ?? "Not captured"}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          License class: {licenseClass ?? "Not captured"}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          License expiry: {licenseExpires ?? "No expiry on file"}
                         </div>
                         <div className="text-xs text-gray-500">
                           Last trip: {metric.lastTrip ? dateFormatter.format(metric.lastTrip) : "No trips recorded"}

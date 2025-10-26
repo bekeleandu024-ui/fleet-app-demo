@@ -54,7 +54,8 @@ interface UnitMatchResult {
 function selectDriverMatch(
   drivers: Array<{
     name: string;
-    license: string | null;
+    licenseClass: string | null;
+    licenseEndorsements: string[];
     homeBase: string | null;
     active: boolean;
   }>,
@@ -75,8 +76,10 @@ function selectDriverMatch(
           reasons.push(`Home base aligns with ${origin}`);
         }
       }
-      if (equipment && driver.license) {
-        const license = normalizeText(driver.license);
+      if (equipment && (driver.licenseClass || driver.licenseEndorsements.length)) {
+        const license = normalizeText(
+          [driver.licenseClass, ...driver.licenseEndorsements].filter(Boolean).join(" ")
+        );
         if (license.includes(equipment)) {
           score += 1.5;
           reasons.push(`Licensed for ${requiredTruck}`);
@@ -151,15 +154,31 @@ function selectUnitMatch(
 
 export async function getOrderInsights(): Promise<OrdersAIResponse> {
   const now = new Date();
-  const [orders, rates, drivers, units] = await Promise.all([
+  const [orders, rates, rawDrivers, units] = await Promise.all([
     prisma.order.findMany({
       orderBy: { createdAt: "desc" },
       include: { trips: { select: { id: true } } },
     }),
     prisma.rate.findMany(),
-    prisma.driver.findMany({ where: { active: true } }),
+    prisma.driver.findMany({
+      where: { active: true },
+      select: {
+        name: true,
+        homeBase: true,
+        active: true,
+        licenseClass: true,
+        licenseEndorsements: true,
+      },
+    }),
     prisma.unit.findMany({ where: { active: true } }),
   ]);
+
+  const drivers = rawDrivers.map((driver) => ({
+    ...driver,
+    licenseEndorsements: Array.isArray(driver.licenseEndorsements)
+      ? driver.licenseEndorsements.filter((item): item is string => typeof item === "string")
+      : [],
+  }));
 
   const results: OrderInsight[] = [];
 

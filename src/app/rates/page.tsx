@@ -15,7 +15,11 @@ export default async function RatesPage() {
   ]);
 
   const rateSettingsForClient = settings.map((item) => ({
-    ...item,
+    id: item.id,
+    rateKey: item.rateKey,
+    category: item.category,
+    unit: item.unit,
+    note: item.note,
     value: Number(item.value),
     updatedAt: item.updatedAt.toISOString(),
   }));
