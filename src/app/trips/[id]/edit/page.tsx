@@ -1,13 +1,20 @@
 import EditTripClientShell from "./EditTripClientShell";
 import { prisma } from "@/src/server/prisma";
-import { mapTripToDTO } from "./map";
+import { mapTripToDTO } from "@/lib/dto/trip.dto";
+import { mapUnitToDTO } from "@/lib/dto/unit.dto";
 import { stripDecimalsDeep, toNum } from "@/lib/serialize";
 import type { SimilarTripSummary, DriverLite, UnitLite } from "./types";
 import type { Prisma } from "@prisma/client";
 
 type PageParams = { params: Promise<{ id: string }> };
 
-type TripWithOrder = Prisma.TripGetPayload<{ include: { order: true } }>;
+type TripWithOrder = Prisma.TripGetPayload<{
+  include: {
+    order: true;
+    driverRef: { select: { name: true } };
+    unitRef: { select: { code: true } };
+  };
+}>;
 
 type SimilarSelect = {
   miles: Prisma.Decimal | number | null;
@@ -50,7 +57,11 @@ export default async function EditTrip({ params }: PageParams) {
 
   const tripRaw: TripWithOrder | null = await prisma.trip.findUnique({
     where: { id },
-    include: { order: true },
+    include: {
+      order: true,
+      driverRef: { select: { name: true } },
+      unitRef: { select: { code: true } },
+    },
   });
 
   if (!tripRaw) {
@@ -84,7 +95,6 @@ export default async function EditTrip({ params }: PageParams) {
       select: { id: true, name: true, homeBase: true, active: true },
     }),
     prisma.unit.findMany({
-      where: { active: true },
       orderBy: { code: "asc" },
       select: { id: true, code: true, type: true, homeBase: true, active: true },
     }),
@@ -117,7 +127,7 @@ export default async function EditTrip({ params }: PageParams) {
   ]);
 
   const drivers: DriverLite[] = stripDecimalsDeep(driversRaw);
-  const units: UnitLite[] = stripDecimalsDeep(unitsRaw);
+  const units: UnitLite[] = unitsRaw.map((unit) => mapUnitToDTO(unit));
 
   const availableTypes = toAvailableList(typeRows.map((row) => row.type));
   const availableZones = toAvailableList(zoneRows.map((row) => row.zone));

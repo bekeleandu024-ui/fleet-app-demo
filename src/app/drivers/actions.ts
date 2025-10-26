@@ -26,6 +26,26 @@ function buildPayload(formData: FormData) {
     .map((value) => value.toString().trim())
     .filter((value) => value.length > 0);
 
+  const licenseNumber = readString("licenseNumber");
+  const licenseJurisdiction = readString("licenseJurisdiction");
+  const licenseClass = readString("licenseClass");
+  const licenseExpiresAt = readDate("licenseExpiresAt");
+
+  const license =
+    licenseNumber ||
+    licenseJurisdiction ||
+    licenseClass ||
+    endorsements.length > 0 ||
+    licenseExpiresAt
+      ? {
+          number: licenseNumber,
+          jurisdiction: licenseJurisdiction,
+          class: licenseClass,
+          endorsements,
+          expiresAt: licenseExpiresAt,
+        }
+      : undefined;
+
   const compliance: Record<string, string> = {};
   const medical = readDate("medicalExpiresAt");
   if (medical) compliance.medicalExpiresAt = medical;
@@ -36,9 +56,19 @@ function buildPayload(formData: FormData) {
 
   const typeRaw = readString("payType");
   const payType = typeRaw === "Hourly" || typeRaw === "CPM" ? typeRaw : null;
-  const rate = readString("rate");
-  const cpm = readString("cpm");
+  const hourlyRate = readString("hourlyRate") ?? readString("rate");
+  const cpmRate = readString("cpmRate") ?? readString("cpm");
   const deductionsProfileId = readString("deductionsProfileId");
+
+  const payroll =
+    payType || hourlyRate || cpmRate || deductionsProfileId
+      ? {
+          type: payType,
+          hourlyRate: hourlyRate ?? undefined,
+          cpmRate: cpmRate ?? undefined,
+          deductionsProfileId: deductionsProfileId ?? undefined,
+        }
+      : undefined;
 
   const status = (readString("status") as "Active" | "Inactive" | undefined) ?? "Active";
 
@@ -47,23 +77,9 @@ function buildPayload(formData: FormData) {
     phone: readString("phone"),
     email: readString("email"),
     homeBase: readString("homeBase"),
-    license: {
-      number: readString("licenseNumber") ?? "",
-      jurisdiction: readString("licenseJurisdiction") ?? "",
-      class: readString("licenseClass") ?? "",
-      endorsements,
-      expiresAt: readDate("licenseExpiresAt"),
-    },
+    license,
     compliance: Object.keys(compliance).length ? compliance : undefined,
-    pay:
-      payType || rate || cpm || deductionsProfileId
-        ? {
-            type: payType,
-            rate: rate ?? undefined,
-            cpm: cpm ?? undefined,
-            deductionsProfileId: deductionsProfileId ?? undefined,
-          }
-        : undefined,
+    payroll,
     status,
     inactiveReason: readString("inactiveReason"),
     inactiveAt: readDate("inactiveAt"),
@@ -76,18 +92,18 @@ function toPersistence(data: z.infer<typeof DriverCreate>) {
     phone: data.phone ?? null,
     email: data.email ?? null,
     homeBase: data.homeBase ?? null,
-    licenseNumber: data.license.number,
-    licenseJurisdiction: data.license.jurisdiction,
-    licenseClass: data.license.class,
-    licenseEndorsements: data.license.endorsements,
-    licenseExpiresAt: data.license.expiresAt ?? null,
+    licenseNumber: data.license?.number ?? null,
+    licenseJurisdiction: data.license?.jurisdiction ?? null,
+    licenseClass: data.license?.class ?? null,
+    licenseEndorsements: data.license?.endorsements ?? [],
+    licenseExpiresAt: data.license?.expiresAt ?? null,
     medicalExpiresAt: data.compliance?.medicalExpiresAt ?? null,
     drugTestDate: data.compliance?.drugTestDate ?? null,
     mvrDate: data.compliance?.mvrDate ?? null,
-    payType: data.pay?.type ?? null,
-    rate: data.pay?.rate ?? null,
-    cpm: data.pay?.cpm ?? null,
-    deductionsProfileId: data.pay?.deductionsProfileId ?? null,
+    payType: data.payroll?.type ?? null,
+    hourlyRate: data.payroll?.hourlyRate ?? null,
+    cpmRate: data.payroll?.cpmRate ?? null,
+    deductionsProfileId: data.payroll?.deductionsProfileId ?? null,
     status: data.status,
     inactiveReason: data.status === "Inactive" ? data.inactiveReason ?? null : null,
     inactiveAt: data.status === "Inactive" ? data.inactiveAt ?? null : null,
@@ -111,16 +127,18 @@ export async function createDriverAction(formData: FormData): Promise<ActionResu
 
     const data = stripDecimalsDeep(parsed.data);
 
-    const conflict = await prisma.driver.findFirst({
-      where: {
-        licenseNumber: data.license.number,
-        licenseJurisdiction: data.license.jurisdiction,
-      } as any,
-      select: { id: true },
-    });
+    if (data.license?.number && data.license?.jurisdiction) {
+      const conflict = await prisma.driver.findFirst({
+        where: {
+          licenseNumber: data.license.number,
+          licenseJurisdiction: data.license.jurisdiction,
+        } as any,
+        select: { id: true },
+      });
 
-    if (conflict) {
-      return { ok: false, error: "A driver with this license already exists" };
+      if (conflict) {
+        return { ok: false, error: "A driver with this license already exists" };
+      }
     }
 
     const created = await prisma.driver.create({
@@ -153,17 +171,19 @@ export async function updateDriverAction(id: string, formData: FormData): Promis
 
     const data = stripDecimalsDeep(full.data);
 
-    const conflict = await prisma.driver.findFirst({
-      where: {
-        licenseNumber: data.license.number,
-        licenseJurisdiction: data.license.jurisdiction,
-        NOT: { id },
-      } as any,
-      select: { id: true },
-    });
+    if (data.license?.number && data.license?.jurisdiction) {
+      const conflict = await prisma.driver.findFirst({
+        where: {
+          licenseNumber: data.license.number,
+          licenseJurisdiction: data.license.jurisdiction,
+          NOT: { id },
+        } as any,
+        select: { id: true },
+      });
 
-    if (conflict) {
-      return { ok: false, error: "A driver with this license already exists" };
+      if (conflict) {
+        return { ok: false, error: "A driver with this license already exists" };
+      }
     }
 
     await prisma.driver.update({
