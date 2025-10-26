@@ -1,29 +1,25 @@
+export const runtime = "nodejs";
+
+import path from "path";
+import fs from "fs/promises";
+import { createRequire } from "module";
 import { NextRequest, NextResponse } from "next/server";
-import { createWorker, type Worker } from "tesseract.js";
+import { createWorker } from "tesseract.js";
 import { preprocessImage } from "@/lib/ocr/preprocess";
 import { parseOrderFromOCR } from "@/lib/ocr/parse";
 import type { OCRLine, OCRWord, OCREndpointResult } from "@/lib/ocr/types";
-
-export const runtime = "nodejs";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const ALLOWED_MIME = new Set(["image/png", "image/jpeg", "application/pdf"]);
 const RATE_LIMIT_WINDOW = 60_000;
 const RATE_LIMIT_COUNT = 12;
 
+const require = createRequire(import.meta.url);
 const rateLimiter = new Map<string, { count: number; expires: number }>();
-let workerPromise: Promise<Worker> | null = null;
-let workerReady: Worker | null = null;
-let currentTask: Promise<void> = Promise.resolve();
-
-async function getWorker() {
-  if (workerReady) return workerReady;
-  if (!workerPromise) {
-    workerPromise = createWorker("eng");
-  }
-  workerReady = await workerPromise;
-  return workerReady;
-}
+const workerPath = require.resolve("tesseract.js/dist/worker.min.js");
+const corePath = require.resolve("tesseract.js-core/tesseract-core.wasm.js");
+const langPath = "https://tessdata.projectnaptha.com/4.0.0";
+const cachePath = path.join(process.cwd(), ".tess-cache");
 
 function limitRequest(request: NextRequest) {
   const ip = request.ip ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous";
@@ -85,17 +81,20 @@ function toLine(line: any): OCRLine {
 }
 
 async function recognizeImage(buffer: Buffer) {
-  const worker = await getWorker();
-  await currentTask;
-  let resolveTask: () => void = () => {};
-  currentTask = new Promise<void>(resolve => {
-    resolveTask = resolve;
+  await fs.mkdir(cachePath, { recursive: true }).catch(() => {});
+  const worker = await createWorker({
+    workerPath,
+    corePath,
+    langPath,
+    cachePath,
   });
   try {
+    await worker.loadLanguage("eng");
+    await worker.initialize("eng");
     const { data } = await worker.recognize(buffer);
     return data;
   } finally {
-    resolveTask();
+    await worker.terminate();
   }
 }
 
